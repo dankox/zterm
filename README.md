@@ -1,2 +1,2 @@
-# zmonitor-go
+# zMonitor
 Monitor tool for z/OS system
