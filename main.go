@@ -2,12 +2,27 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"time"
 
 	"github.com/jroimartin/gocui"
+	"github.com/pelletier/go-toml"
 )
+
+// Server configuration
+type Server struct {
+	Host string
+	User string
+}
+
+// Config type defining configuration
+type Config struct {
+	Server Server
+}
+
+var config = Config{}
 
 // go always executes init() at the startup, after all variable declarations
 func init() {
@@ -15,6 +30,16 @@ func init() {
 }
 
 func main() {
+
+	// example how the content looks like (need double quotes for string)
+	// [server]
+	// host = "localhost"
+	// user = "username"
+	doc, err := ioutil.ReadFile(".zmonitor")
+	if err == nil {
+		toml.Unmarshal(doc, &config)
+	}
+
 	g, err := gocui.NewGui(gocui.OutputNormal)
 	if err != nil {
 		log.Panicln(err)
@@ -68,7 +93,7 @@ func updateLayout(g *gocui.Gui, v *gocui.View) error {
 		g.SetCurrentView(name)
 		g.SetViewOnTop(name)
 		nv.Clear()
-		fmt.Fprintln(nv, "Hello random z/OS world!")
+		fmt.Fprintf(nv, "Hello random z/OS world!\nhost = %v\nuser = %v", config.Server.Host, config.Server.User)
 		return nil
 	})
 
