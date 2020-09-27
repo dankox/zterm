@@ -2,8 +2,7 @@ package monitor
 
 import (
 	"log"
-	"math/rand"
-	"time"
+	"sort"
 
 	"github.com/jroimartin/gocui"
 	"github.com/spf13/viper"
@@ -18,14 +17,14 @@ type Server struct {
 // Config type defining configuration
 type Config struct {
 	Server Server
+	Views  map[string]int
 }
 
-var config = Config{}
-
-// go always executes init() at the startup, after all variable declarations
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
+var (
+	config      = Config{}
+	viewOrder   []string
+	viewMaxSize = 0
+)
 
 // Main function of monitor package
 //
@@ -39,6 +38,13 @@ func init() {
 func Main() {
 	// load config file (or arguments)
 	viper.Unmarshal(&config)
+
+	// count 100% size of all the views
+	for k, v := range config.Views {
+		viewOrder = append(viewOrder, k)
+		viewMaxSize += v
+	}
+	sort.Strings(viewOrder)
 
 	// setup UI
 	g, err := gocui.NewGui(gocui.OutputNormal)
