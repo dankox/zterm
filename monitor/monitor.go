@@ -1,6 +1,7 @@
 package monitor
 
 import (
+	"fmt"
 	"log"
 	"sort"
 
@@ -20,10 +21,24 @@ type Config struct {
 	Views  map[string]int
 }
 
+// WidgetManager cover Layout for GUI and some specifics for widgets
+type WidgetManager interface {
+	// Layout is for gocui.GUI
+	Layout(*gocui.Gui) error
+	GetName() string
+	IsHidden() bool
+}
+
 var (
-	config      = Config{}
+	// default config with empty View map (so we don't have to do make)
+	config = Config{
+		Server{},
+		map[string]int{},
+	}
 	viewOrder   []string
 	viewMaxSize = 0
+	widgets     []WidgetManager
+	cmdView     = "console"
 )
 
 // Main function of monitor package
@@ -53,11 +68,37 @@ func Main() {
 	}
 	defer g.Close()
 
-	g.SetManagerFunc(layout)
+	// prepare widgets
+	widgets = setupManagers()
+	// convert for GUI library
+	managers := make([]gocui.Manager, len(widgets))
+	for i, w := range widgets {
+		managers[i] = w
+	}
+	// set layout managers
+	g.SetManager(managers...)
 
 	keybinds(g)
 
 	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
 		log.Panicln(err)
 	}
+}
+
+// setupManagers prepare list of widgets where each of them manage its own layout and data
+func setupManagers() []WidgetManager {
+	managers := []WidgetManager{}
+
+	// add help widget first
+	managers = append(managers, NewHelpWidget())
+
+	// add configured views
+	for i, v := range viewOrder {
+		widget := NewWidget(v, i, config.Views[v], fmt.Sprintf("Loading %v...", v))
+		managers = append(managers, widget)
+	}
+
+	// add floaty widgets
+	managers = append(managers, NewWidgetFloaty(cmdView, 0, -4, -1, 3, ">> "))
+	return managers
 }
