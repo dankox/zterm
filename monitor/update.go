@@ -32,7 +32,12 @@ func changeView(g *gocui.Gui, v *gocui.View) error {
 
 	// find next view (from the current)
 	if next == "" {
-		next = viewOrder[0]
+		// set default only when there is some
+		if len(viewOrder) > 0 {
+			next = viewOrder[0]
+		} else {
+			next = widgets[0].GetName()
+		}
 	} else {
 		for i, k := range viewOrder {
 			if k == next {
@@ -63,7 +68,13 @@ func showConsole(g *gocui.Gui, v *gocui.View) error {
 					wf.Enabled = false
 					// unset current view
 					if g.CurrentView() != nil && g.CurrentView().Name() == wf.name {
-						g.SetCurrentView(viewOrder[0])
+						if len(viewOrder) > 0 {
+							// set to first view in regular layout
+							g.SetCurrentView(viewOrder[0])
+						} else {
+							// set it on Help, if no other view is there
+							g.SetCurrentView(widgets[0].GetName())
+						}
 					}
 				}
 			} else {
