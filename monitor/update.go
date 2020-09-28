@@ -25,13 +25,13 @@ func updateLayout(g *gocui.Gui, v *gocui.View) error {
 }
 
 func changeView(g *gocui.Gui, v *gocui.View) error {
-	next := ""
+	curr, next := "", ""
 	if v != nil {
-		next = v.Name()
+		curr = v.Name()
 	}
 
 	// find next view (from the current)
-	if next == "" {
+	if curr == "" {
 		// set default only when there is some
 		if len(viewOrder) > 0 {
 			next = viewOrder[0]
@@ -40,7 +40,7 @@ func changeView(g *gocui.Gui, v *gocui.View) error {
 		}
 	} else {
 		for i, k := range viewOrder {
-			if k == next {
+			if k == curr {
 				if (i + 1) == len(viewOrder) {
 					next = viewOrder[0]
 				} else {
@@ -50,7 +50,11 @@ func changeView(g *gocui.Gui, v *gocui.View) error {
 			}
 		}
 	}
-	g.SetCurrentView(next)
+	if next != "" {
+		g.SetCurrentView(next)
+	} else {
+		setDefaultView(g)
+	}
 	return nil
 }
 

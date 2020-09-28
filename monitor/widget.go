@@ -2,6 +2,7 @@ package monitor
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/jroimartin/gocui"
 )
@@ -70,6 +71,9 @@ func (w *Widget) Layout(g *gocui.Gui) error {
 		fmt.Fprint(v, w.body)
 	}
 	w.gview = v // set pointer to GUI View
+	if g.CurrentView() == nil && (len(viewOrder) == 0 || w.name != "help-window") {
+		g.SetCurrentView(w.name)
+	}
 
 	// set title
 	if g.CurrentView() == v {
@@ -77,7 +81,19 @@ func (w *Widget) Layout(g *gocui.Gui) error {
 	} else {
 		v.Title = fmt.Sprintf("| %v |", w.name)
 	}
+	v.Autoscroll = true
 	return nil
+}
+
+// Keybinds for specific widget
+func (w *Widget) Keybinds(g *gocui.Gui) {
+	if err := g.SetKeybinding(w.name, gocui.KeyCtrlR, gocui.ModNone, updateLayout); err != nil {
+		log.Panicln(err)
+	}
+
+	if err := g.SetKeybinding(w.name, gocui.KeyTab, gocui.ModNone, changeView); err != nil {
+		log.Panicln(err)
+	}
 }
 
 // GetName returns widget name

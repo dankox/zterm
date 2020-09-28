@@ -25,6 +25,7 @@ type Config struct {
 type WidgetManager interface {
 	// Layout is for gocui.GUI
 	Layout(*gocui.Gui) error
+	Keybinds(*gocui.Gui)
 	GetName() string
 	GetView() *gocui.View
 	IsHidden() bool
@@ -39,6 +40,7 @@ var (
 	viewOrder   []string
 	viewMaxSize = 0
 	widgets     []WidgetManager
+	gui         *gocui.Gui
 )
 
 // Main function of monitor package
@@ -67,6 +69,7 @@ func Main() {
 		log.Panicln(err)
 	}
 	defer g.Close()
+	gui = g // save pointer for use outside
 
 	// prepare widgets
 	widgets = setupManagers()
@@ -75,10 +78,14 @@ func Main() {
 	for i, w := range widgets {
 		managers[i] = w
 	}
-	// set layout managers
+	// set layout managers (deletes everything: keys, views, etc.)
 	g.SetManager(managers...)
 
-	keybinds(g)
+	// set keybinds (after layout manager)
+	for _, w := range widgets {
+		w.Keybinds(g)
+	}
+	keybindsGlobal(g)
 
 	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
 		log.Panicln(err)

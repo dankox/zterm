@@ -2,6 +2,8 @@ package monitor
 
 import (
 	"fmt"
+	"log"
+	"strings"
 
 	"github.com/jroimartin/gocui"
 )
@@ -9,6 +11,7 @@ import (
 // WidgetConsole structure for GUI
 type WidgetConsole struct {
 	gview      *gocui.View
+	lastView   string
 	cmdHistory []string
 	histIndex  int
 	Enabled    bool
@@ -35,7 +38,12 @@ func (wc *WidgetConsole) Layout(g *gocui.Gui) error {
 		wc.gview = nil
 		// check if current view was pointing to this view before (just to be sure!)
 		if g.CurrentView() != nil && g.CurrentView().Name() == cmdPrompt {
-			setDefaultView(g)
+			if wc.lastView != "" {
+				g.SetCurrentView(wc.lastView)
+				wc.lastView = ""
+			} else {
+				setDefaultView(g)
+			}
 		}
 		return nil
 	}
@@ -68,6 +76,10 @@ func (wc *WidgetConsole) Layout(g *gocui.Gui) error {
 		// fmt.Fprint(v, "hello danko")
 	}
 
+	// save last CurrentView
+	if cv := g.CurrentView(); cv != nil && cv.Name() != cmdPrompt {
+		wc.lastView = cv.Name()
+	}
 	// set editing
 	v.Editable = true
 	v.Autoscroll = false
@@ -77,6 +89,13 @@ func (wc *WidgetConsole) Layout(g *gocui.Gui) error {
 	v.Editor = gocui.EditorFunc(consoleEditor)
 
 	return nil
+}
+
+// Keybinds for specific widget
+func (wc *WidgetConsole) Keybinds(g *gocui.Gui) {
+	if err := g.SetKeybinding(cmdPrompt, gocui.KeyEsc, gocui.ModNone, showConsole); err != nil {
+		log.Panicln(err)
+	}
 }
 
 // GetName returns console widget name
@@ -96,14 +115,21 @@ func (wc *WidgetConsole) IsHidden() bool {
 
 // ExecCmd execute command in the Console Widget
 func (wc *WidgetConsole) ExecCmd(cmd string) {
-	// executing command
+	// add to history and update index
 	wc.cmdHistory = append(wc.cmdHistory, cmd)
 	wc.histIndex = len(wc.cmdHistory)
-	// output of the command
-	// message from the command
+	// executing command
+	out, msg, err := commandExecute(cmd)
+	// clear console output view (cmdView)
 	wc.gview.Clear()
-	msgType := "command executed"
-	fmt.Fprintf(wc.gview, ">> \n%v: %v", msgType, cmd)
+	// handle command outputs
+	if err == nil && len(msg) > 0 {
+		fmt.Fprintf(wc.gview, ">> \n%v: %v", msg, out)
+	} else if err != nil {
+		fmt.Fprintf(wc.gview, ">> \nerror: %v", err)
+	} else {
+		fmt.Fprintf(wc.gview, ">> \n%v", out)
+	}
 }
 
 // PrevHistory go back in history and return command from it
@@ -142,28 +168,26 @@ func (wc *WidgetConsole) NextHistory() string {
 
 // ShowConsole is an update function which should be bound to a key
 func showConsole(g *gocui.Gui, v *gocui.View) error {
-	for _, w := range widgets {
-		if w.GetName() == cmdView {
-			// console should be console widget
-			wc, ok := w.(*WidgetConsole)
-			if ok {
-				if w.IsHidden() {
-					wc.Enabled = true
-					g.Cursor = true
+	if wc := getConsoleWidget(); wc != nil {
+		if wc.IsHidden() {
+			wc.Enabled = true
+			g.Cursor = true
+		} else {
+			wc.Enabled = false
+			g.Cursor = false
+			// check if current view was pointing to this view before (just to be sure!)
+			if g.CurrentView() != nil && g.CurrentView().Name() == cmdPrompt {
+				if wc.lastView != "" {
+					g.SetCurrentView(wc.lastView)
+					wc.lastView = ""
 				} else {
-					wc.Enabled = false
-					g.Cursor = false
-					// unset current view
-					if g.CurrentView() != nil && g.CurrentView().Name() == cmdView {
-						setDefaultView(g)
-					}
+					setDefaultView(g)
 				}
-			} else {
-				panic("WTF did I do? How did I setup console???")
 			}
-			return nil
 		}
+		return nil
 	}
+	// WTF?? what did I do? Where is my console??
 	return gocui.ErrUnknownView
 }
 
@@ -181,6 +205,7 @@ func consoleEditor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 	case key == gocui.KeyInsert:
 		v.Overwrite = !v.Overwrite
 	case key == gocui.KeyEnter:
+		// command exec
 		if line, err := v.Line(0); err == nil {
 			if wc := getConsoleWidget(); wc != nil {
 				wc.ExecCmd(line)
@@ -197,6 +222,7 @@ func consoleEditor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 			v.MoveCursor(len(line)-x, 0, false)
 		}
 	case key == gocui.KeyArrowDown:
+		// command history
 		if wc := getConsoleWidget(); wc != nil {
 			newcmd := wc.NextHistory()
 			v.Clear()
@@ -204,6 +230,7 @@ func consoleEditor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 			v.SetCursor(len(newcmd), 0)
 		}
 	case key == gocui.KeyArrowUp:
+		// command history
 		if wc := getConsoleWidget(); wc != nil {
 			newcmd := wc.PrevHistory()
 			v.Clear()
@@ -214,5 +241,16 @@ func consoleEditor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 		v.MoveCursor(-1, 0, false)
 	case key == gocui.KeyArrowRight:
 		v.MoveCursor(1, 0, false)
+	case key == gocui.KeyTab:
+		// autocompletion
+		if line, err := v.Line(0); err == nil {
+			for _, c := range cmdList {
+				if strings.HasPrefix(c, line) {
+					v.Clear()
+					fmt.Fprint(v, c)
+					v.SetCursor(len(c), 0)
+				}
+			}
+		}
 	}
 }

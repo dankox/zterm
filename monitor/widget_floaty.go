@@ -2,6 +2,7 @@ package monitor
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/jroimartin/gocui"
 )
@@ -65,6 +66,17 @@ func (wf *WidgetFloaty) Layout(g *gocui.Gui) error {
 	g.SetCurrentView(wf.name)
 
 	return nil
+}
+
+// Keybinds for specific widget
+func (wf *WidgetFloaty) Keybinds(g *gocui.Gui) {
+	if err := g.SetKeybinding(wf.name, gocui.KeyCtrlR, gocui.ModNone, updateLayout); err != nil {
+		log.Panicln(err)
+	}
+
+	if err := g.SetKeybinding(wf.name, gocui.KeyTab, gocui.ModNone, changeView); err != nil {
+		log.Panicln(err)
+	}
 }
 
 // GetName returns floaty widget name
