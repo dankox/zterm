@@ -26,6 +26,7 @@ type WidgetManager interface {
 	// Layout is for gocui.GUI
 	Layout(*gocui.Gui) error
 	GetName() string
+	GetView() *gocui.View
 	IsHidden() bool
 }
 
@@ -38,7 +39,6 @@ var (
 	viewOrder   []string
 	viewMaxSize = 0
 	widgets     []WidgetManager
-	cmdView     = "console"
 )
 
 // Main function of monitor package
@@ -99,6 +99,39 @@ func setupManagers() []WidgetManager {
 	}
 
 	// add floaty widgets
-	managers = append(managers, NewWidgetFloaty(cmdView, 0, -4, -1, 3, ">> "))
+	// managers = append(managers, NewWidgetFloaty("test-window", 0, -4, -1, 3, "Window"))
+
+	// add console widget
+	managers = append(managers, NewWidgetConsole())
 	return managers
+}
+
+func getWidget(name string) *WidgetManager {
+	for _, w := range widgets {
+		if w.GetName() == name {
+			return &w
+		}
+	}
+	return nil
+}
+
+func getWidgetView(name string) *gocui.View {
+	for _, w := range widgets {
+		if w.GetName() == name {
+			return w.GetView()
+		}
+	}
+	return nil
+}
+
+func getConsoleWidget() *WidgetConsole {
+	for _, w := range widgets {
+		if w.GetName() == cmdView {
+			if wc, ok := w.(*WidgetConsole); ok {
+				return wc
+			}
+			return nil
+		}
+	}
+	return nil
 }

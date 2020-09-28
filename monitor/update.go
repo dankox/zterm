@@ -54,36 +54,15 @@ func changeView(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
-func showConsole(g *gocui.Gui, v *gocui.View) error {
-	for _, w := range widgets {
-		if w.GetName() == cmdView {
-			// console should be floaty widget
-			wf, ok := w.(*WidgetFloaty)
-			if ok {
-				if w.IsHidden() {
-					wf.Editable = true
-					wf.Enabled = true
-				} else {
-					wf.Editable = false
-					wf.Enabled = false
-					// unset current view
-					if g.CurrentView() != nil && g.CurrentView().Name() == wf.name {
-						if len(viewOrder) > 0 {
-							// set to first view in regular layout
-							g.SetCurrentView(viewOrder[0])
-						} else {
-							// set it on Help, if no other view is there
-							g.SetCurrentView(widgets[0].GetName())
-						}
-					}
-				}
-			} else {
-				panic("WTF did you do? How did you setup console???")
-			}
-			return nil
-		}
+// SetDefaultView to either first one in view list or help view (if none)
+func setDefaultView(g *gocui.Gui) {
+	if len(viewOrder) > 0 {
+		// set to first view in regular layout
+		g.SetCurrentView(viewOrder[0])
+	} else {
+		// set it on Help, if no other view is there
+		g.SetCurrentView(widgets[0].GetName())
 	}
-	return gocui.ErrUnknownView
 }
 
 func quit(g *gocui.Gui, v *gocui.View) error {

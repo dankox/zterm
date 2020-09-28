@@ -13,6 +13,7 @@ type WidgetFloaty struct {
 	x, y     int
 	width    int
 	height   int
+	gview    *gocui.View
 	Enabled  bool
 	Editable bool
 }
@@ -28,9 +29,10 @@ func (wf *WidgetFloaty) Layout(g *gocui.Gui) error {
 	// do not display if disabled
 	if !wf.Enabled {
 		g.DeleteView(wf.name) // if doesn't exist, don't care
+		wf.gview = nil
 		// check if current view was pointing to this view before (just to be sure!)
 		if g.CurrentView() != nil && g.CurrentView().Name() == wf.name {
-			g.SetCurrentView(viewOrder[0])
+			setDefaultView(g)
 		}
 		return nil
 	}
@@ -53,16 +55,14 @@ func (wf *WidgetFloaty) Layout(g *gocui.Gui) error {
 		}
 		fmt.Fprint(v, wf.body)
 	}
+	wf.gview = v // set pointer to GUI View
 
 	// set title
 	v.Title = fmt.Sprintf("< %v >", wf.name)
 	g.SetViewOnTop(wf.name)
 
-	// set editing
-	v.Editable = wf.Editable
-	if wf.Editable {
-		g.SetCurrentView(wf.name)
-	}
+	// set current view for keys and stuff...
+	g.SetCurrentView(wf.name)
 
 	return nil
 }
@@ -70,6 +70,11 @@ func (wf *WidgetFloaty) Layout(g *gocui.Gui) error {
 // GetName returns floaty widget name
 func (wf *WidgetFloaty) GetName() string {
 	return wf.name
+}
+
+// GetView returns floaty widget GUI View
+func (wf *WidgetFloaty) GetView() *gocui.View {
+	return wf.gview
 }
 
 // IsHidden checks if floaty widget is disabled

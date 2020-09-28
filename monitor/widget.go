@@ -14,6 +14,7 @@ type Widget struct {
 	height  int
 	width   int
 	x, y    int // for floaty widgets
+	gview   *gocui.View
 	Enabled bool
 }
 
@@ -38,6 +39,7 @@ func (w *Widget) Layout(g *gocui.Gui) error {
 	// do not display if disabled
 	if !w.Enabled {
 		g.DeleteView(w.name) // if doesn't exist, don't care
+		w.gview = nil
 		return nil
 	}
 	// Enabled, display...
@@ -67,6 +69,7 @@ func (w *Widget) Layout(g *gocui.Gui) error {
 		}
 		fmt.Fprint(v, w.body)
 	}
+	w.gview = v // set pointer to GUI View
 
 	// set title
 	if g.CurrentView() == v {
@@ -80,6 +83,11 @@ func (w *Widget) Layout(g *gocui.Gui) error {
 // GetName returns widget name
 func (w *Widget) GetName() string {
 	return w.name
+}
+
+// GetView returns widget GUI View
+func (w *Widget) GetView() *gocui.View {
+	return w.gview
 }
 
 // IsHidden checks if widget is disabled
