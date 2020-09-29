@@ -252,5 +252,15 @@ func consoleEditor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 				}
 			}
 		}
+	// from awesome-gocui (new addition?)
+	case key == gocui.KeyCtrlU:
+		v.EditDeleteToStartOfLine()
+	case key == gocui.KeyCtrlA:
+		v.EditGotoToStartOfLine()
+	case key == gocui.KeyCtrlE:
+		v.EditGotoToEndOfLine()
+	default:
+		v.EditWrite(ch)
 	}
+
 }

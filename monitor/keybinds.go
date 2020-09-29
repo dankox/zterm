@@ -20,7 +20,7 @@ func keybindsGlobal(g *gocui.Gui) {
 	if err := g.SetKeybinding("", gocui.KeyF1, gocui.ModNone, showConsole); err != nil {
 		log.Panicln(err)
 	}
-	if err := g.SetKeybinding("", '`', gocui.ModAlt, showConsole); err != nil {
+	if err := g.SetKeybinding("", '`', gocui.ModNone, showConsole); err != nil {
 		log.Panicln(err)
 	}
 }
