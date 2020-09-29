@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/jroimartin/gocui"
+	"github.com/awesome-gocui/gocui"
 )
 
 var cmdList = []string{"ls", "pwd", "cd", "whoami", "which", "find", "grep",

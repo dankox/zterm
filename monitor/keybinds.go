@@ -3,7 +3,7 @@ package monitor
 import (
 	"log"
 
-	"github.com/jroimartin/gocui"
+	"github.com/awesome-gocui/gocui"
 )
 
 // Global Keybinds setup

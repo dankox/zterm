@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/jroimartin/gocui"
+	"github.com/awesome-gocui/gocui"
 )
 
 // WidgetFloaty structure for GUI
@@ -49,9 +49,9 @@ func (wf *WidgetFloaty) Layout(g *gocui.Gui) error {
 		width = wf.width
 	}
 
-	v, err := g.SetView(wf.name, wf.x, yPos, width, yPos+wf.height)
+	v, err := g.SetView(wf.name, wf.x, yPos, width, yPos+wf.height, 0)
 	if err != nil {
-		if err != gocui.ErrUnknownView {
+		if !gocui.IsUnknownView(err) {
 			return fmt.Errorf("view %v: %v", wf.name, err)
 		}
 		fmt.Fprint(v, wf.body)

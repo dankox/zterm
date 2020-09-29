@@ -5,7 +5,7 @@ import (
 	"log"
 	"sort"
 
-	"github.com/jroimartin/gocui"
+	"github.com/awesome-gocui/gocui"
 	"github.com/spf13/viper"
 )
 
@@ -64,7 +64,7 @@ func Main() {
 	sort.Strings(viewOrder)
 
 	// setup UI
-	g, err := gocui.NewGui(gocui.OutputNormal)
+	g, err := gocui.NewGui(gocui.OutputNormal, false)
 	if err != nil {
 		log.Panicln(err)
 	}
@@ -87,7 +87,7 @@ func Main() {
 	}
 	keybindsGlobal(g)
 
-	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
+	if err := g.MainLoop(); err != nil && !gocui.IsQuit(err) {
 		log.Panicln(err)
 	}
 }

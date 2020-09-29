@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/jroimartin/gocui"
+	"github.com/awesome-gocui/gocui"
 )
 
 // Widget structure for GUI
@@ -63,9 +63,9 @@ func (w *Widget) Layout(g *gocui.Gui) error {
 	}
 
 	// set view position and dimension
-	v, err := g.SetView(w.name, 0, yPos, maxX-1, yPos+yHeight)
+	v, err := g.SetView(w.name, 0, yPos, maxX-1, yPos+yHeight, 0)
 	if err != nil {
-		if err != gocui.ErrUnknownView {
+		if !gocui.IsUnknownView(err) {
 			return fmt.Errorf("view %v: %v", w.name, err)
 		}
 		fmt.Fprint(v, w.body)

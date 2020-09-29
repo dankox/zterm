@@ -5,7 +5,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/jroimartin/gocui"
+	"github.com/awesome-gocui/gocui"
 )
 
 // WidgetConsole structure for GUI
@@ -54,9 +54,9 @@ func (wc *WidgetConsole) Layout(g *gocui.Gui) error {
 	width := maxX - 1
 
 	// set console "outer" window
-	v, err := g.SetView(cmdView, 0, yPos, width, yPos+consoleHeight)
+	v, err := g.SetView(cmdView, 0, yPos, width, yPos+consoleHeight, 0)
 	if err != nil {
-		if err != gocui.ErrUnknownView {
+		if !gocui.IsUnknownView(err) {
 			return fmt.Errorf("view %v: %v", cmdView, err)
 		}
 		fmt.Fprint(v, ">> ")
@@ -68,9 +68,9 @@ func (wc *WidgetConsole) Layout(g *gocui.Gui) error {
 	g.SetViewOnTop(cmdView)
 
 	// set console "input" line
-	v, err = g.SetView(cmdPrompt, 3, yPos, width, yPos+2)
+	v, err = g.SetView(cmdPrompt, 3, yPos, width, yPos+2, 0)
 	if err != nil {
-		if err != gocui.ErrUnknownView {
+		if !gocui.IsUnknownView(err) {
 			return fmt.Errorf("view %v: %v", cmdView, err)
 		}
 		// fmt.Fprint(v, "hello danko")
@@ -188,7 +188,7 @@ func showConsole(g *gocui.Gui, v *gocui.View) error {
 		return nil
 	}
 	// WTF?? what did I do? Where is my console??
-	return gocui.ErrUnknownView
+	return gocui.ErrUnknownView // this error doesn't comfort the new errors in gocui (but whatev)
 }
 
 // Console Editor (special setup for keys)

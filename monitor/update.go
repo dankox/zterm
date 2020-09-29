@@ -3,7 +3,7 @@ package monitor
 import (
 	"fmt"
 
-	"github.com/jroimartin/gocui"
+	"github.com/awesome-gocui/gocui"
 )
 
 func updateLayout(g *gocui.Gui, v *gocui.View) error {
