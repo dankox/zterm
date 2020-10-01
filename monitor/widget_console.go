@@ -93,7 +93,8 @@ func (wc *WidgetConsole) Layout(g *gocui.Gui) error {
 
 // Keybinds for specific widget
 func (wc *WidgetConsole) Keybinds(g *gocui.Gui) {
-	if err := g.SetKeybinding(cmdPrompt, gocui.KeyEsc, gocui.ModNone, showConsole); err != nil {
+	// setup Tab for autocompletion (because it's global key, so to work in console, overwrite)
+	if err := g.SetKeybinding(cmdPrompt, gocui.KeyTab, gocui.ModNone, autoComplete); err != nil {
 		log.Panicln(err)
 	}
 }
@@ -123,12 +124,16 @@ func (wc *WidgetConsole) ExecCmd(cmd string) {
 	// clear console output view (cmdView)
 	wc.gview.Clear()
 	// handle command outputs
-	if err == nil && len(msg) > 0 {
-		fmt.Fprintf(wc.gview, ">> \n%v: %v", msg, out)
-	} else if err != nil {
+	if len(out) > 0 {
+		addPopupWidget("console-output", out)
+		gui.Cursor = false
+	}
+	if err != nil {
 		fmt.Fprintf(wc.gview, ">> \nerror: %v", err)
+	} else if len(msg) > 0 {
+		fmt.Fprintf(wc.gview, ">> \n%v", msg)
 	} else {
-		fmt.Fprintf(wc.gview, ">> \n%v", out)
+		fmt.Fprint(wc.gview, ">> \n")
 	}
 }
 
@@ -241,17 +246,6 @@ func consoleEditor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 		v.MoveCursor(-1, 0, false)
 	case key == gocui.KeyArrowRight:
 		v.MoveCursor(1, 0, false)
-	case key == gocui.KeyTab:
-		// autocompletion
-		if line, err := v.Line(0); err == nil {
-			for _, c := range cmdList {
-				if strings.HasPrefix(c, line) {
-					v.Clear()
-					fmt.Fprint(v, c)
-					v.SetCursor(len(c), 0)
-				}
-			}
-		}
 	// from awesome-gocui (new addition?)
 	case key == gocui.KeyCtrlU:
 		v.EditDeleteToStartOfLine()
@@ -263,4 +257,18 @@ func consoleEditor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 		v.EditWrite(ch)
 	}
 
+}
+
+func autoComplete(g *gocui.Gui, v *gocui.View) error {
+	// autocompletion
+	if line, err := v.Line(0); err == nil {
+		for _, c := range cmdList {
+			if strings.HasPrefix(c, line) {
+				v.Clear()
+				fmt.Fprint(v, c)
+				v.SetCursor(len(c), 0)
+			}
+		}
+	}
+	return nil
 }

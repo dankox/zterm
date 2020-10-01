@@ -14,6 +14,10 @@ func updateLayout(g *gocui.Gui, v *gocui.View) error {
 		if nv == nil {
 			return nil
 		}
+		// skip for command prompt
+		if nv.Name() == cmdPrompt {
+			return nil
+		}
 		nv.Wrap = true
 		nv.Clear()
 		fmt.Fprintf(nv, "Hello random z/OS world!\nhost = %v\nuser = %v\n", config.Server.Host, config.Server.User)

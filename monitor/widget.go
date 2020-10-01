@@ -2,7 +2,6 @@ package monitor
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/awesome-gocui/gocui"
 )
@@ -87,13 +86,7 @@ func (w *Widget) Layout(g *gocui.Gui) error {
 
 // Keybinds for specific widget
 func (w *Widget) Keybinds(g *gocui.Gui) {
-	if err := g.SetKeybinding(w.name, gocui.KeyCtrlR, gocui.ModNone, updateLayout); err != nil {
-		log.Panicln(err)
-	}
-
-	if err := g.SetKeybinding(w.name, gocui.KeyTab, gocui.ModNone, changeView); err != nil {
-		log.Panicln(err)
-	}
+	// special keybinds for the widgets
 }
 
 // GetName returns widget name

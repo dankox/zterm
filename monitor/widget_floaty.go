@@ -41,15 +41,27 @@ func (wf *WidgetFloaty) Layout(g *gocui.Gui) error {
 	maxX, maxY := g.Size()
 	// compute correct position and width
 	yPos := wf.y
+	xPos := wf.x
 	width := maxX - 1
 	if wf.y < 0 {
 		yPos = maxY + wf.y
+	} else if wf.y == 0 {
+		yPos = (maxY - wf.height) / 2
+		if yPos < 0 {
+			yPos = 0
+		}
 	}
 	if wf.width > 0 {
 		width = wf.width
 	}
+	if wf.x == 0 {
+		xPos = (maxX - width) / 2
+		if xPos < 0 {
+			xPos = 0
+		}
+	}
 
-	v, err := g.SetView(wf.name, wf.x, yPos, width, yPos+wf.height, 0)
+	v, err := g.SetView(wf.name, xPos, yPos, xPos+width, yPos+wf.height, 0)
 	if err != nil {
 		if !gocui.IsUnknownView(err) {
 			return fmt.Errorf("view %v: %v", wf.name, err)
@@ -64,17 +76,15 @@ func (wf *WidgetFloaty) Layout(g *gocui.Gui) error {
 
 	// set current view for keys and stuff...
 	g.SetCurrentView(wf.name)
+	v.Autoscroll = true
 
 	return nil
 }
 
 // Keybinds for specific widget
 func (wf *WidgetFloaty) Keybinds(g *gocui.Gui) {
-	if err := g.SetKeybinding(wf.name, gocui.KeyCtrlR, gocui.ModNone, updateLayout); err != nil {
-		log.Panicln(err)
-	}
-
-	if err := g.SetKeybinding(wf.name, gocui.KeyTab, gocui.ModNone, changeView); err != nil {
+	// Esc close the widget
+	if err := g.SetKeybinding(wf.name, gocui.KeyEsc, gocui.ModNone, closeFloatyWidget); err != nil {
 		log.Panicln(err)
 	}
 }
@@ -92,4 +102,41 @@ func (wf *WidgetFloaty) GetView() *gocui.View {
 // IsHidden checks if floaty widget is disabled
 func (wf *WidgetFloaty) IsHidden() bool {
 	return wf.Enabled == false
+}
+
+func addPopupWidget(name string, body string) {
+	// Enabled, display...
+	maxX, maxY := gui.Size()
+	// compute correct position and width
+	width := maxX - 1 - 10
+	height := maxY - 5 - 10
+
+	// prepare widgets
+	widget := NewWidgetFloaty(name, 0, 0, width, height, body)
+	widget.Enabled = true
+	widgets = append(widgets, widget)
+	widget.Keybinds(gui)
+	// run layouts to sort the order (console on top)
+	getConsoleWidget().Layout(gui)
+	widget.Layout(gui)
+}
+
+func closeFloatyWidget(g *gocui.Gui, v *gocui.View) error {
+	for i, w := range widgets {
+		if w.GetName() == v.Name() {
+			if wf, ok := w.(*WidgetFloaty); ok {
+				wf.Enabled = false
+				wf.Layout(g)                                    // delete the view and set previous view as current
+				widgets = append(widgets[:i], widgets[i+1:]...) // remove from widgets
+				if getConsoleWidget().Enabled {
+					g.Cursor = true
+					g.SetCurrentView(cmdPrompt)
+				}
+			} else {
+				panic("Not a WidgetFloaty to close! Something went wrong!")
+			}
+		}
+	}
+
+	return nil
 }

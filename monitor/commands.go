@@ -2,7 +2,6 @@ package monitor
 
 import (
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"os/exec"
 	"strings"
@@ -25,25 +24,16 @@ func commandExecute(command string) (string, string, error) {
 	case "error":
 		return "", "", errors.New("command failed")
 	case "addview":
-		// TODO: too fancy... and probably too much shits... try to fix it in better way
 		config.Views[cmdParts[1]] = 10
 		viewMaxSize += 10
 		viewOrder = append(viewOrder, cmdParts[1])
 		// prepare widgets
-		widgets = setupManagers()
-		// convert for GUI library
-		managers := make([]gocui.Manager, len(widgets))
-		for i, w := range widgets {
-			managers[i] = w
-		}
-		// set layout managers (deletes everything: keys, views, etc.)
-		gui.SetManager(managers...)
-
-		// set keybinds (after layout manager)
-		for _, w := range widgets {
-			w.Keybinds(gui)
-		}
-		keybindsGlobal(gui)
+		widget := NewWidget(cmdParts[1], len(viewOrder)-1, 10, "new view")
+		widgets = append(widgets, widget)
+		widget.Keybinds(gui)
+		// run layouts to sort the order (console on top)
+		widget.Layout(gui)
+		getConsoleWidget().Layout(gui)
 
 	default:
 		// handle bash command execution
@@ -60,15 +50,12 @@ func commandExecute(command string) (string, string, error) {
 		slurpOut, _ := ioutil.ReadAll(stdout)
 		output := string(slurpOut)
 
-		if cw := getConsoleWidget(); cw != nil {
-			// if v, err := gui.View("1-joblog"); err == nil {
-			// 	fmt.Fprint(v, cw.lastView)
-			// }
-			if v, err := gui.View(cw.lastView); err == nil {
-				fmt.Fprint(v, output)
-				output = ""
-			}
-		}
+		// if cw := getConsoleWidget(); cw != nil {
+		// 	if v, err := gui.View(cw.lastView); err == nil {
+		// 		fmt.Fprint(v, output)
+		// 		output = ""
+		// 	}
+		// }
 
 		if err := c.Wait(); err != nil {
 			return "", "", err

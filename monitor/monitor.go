@@ -73,13 +73,8 @@ func Main() {
 
 	// prepare widgets
 	widgets = setupManagers()
-	// convert for GUI library
-	managers := make([]gocui.Manager, len(widgets))
-	for i, w := range widgets {
-		managers[i] = w
-	}
-	// set layout managers (deletes everything: keys, views, etc.)
-	g.SetManager(managers...)
+	// set layout manager function
+	g.SetManagerFunc(handleLayouts)
 
 	// set keybinds (after layout manager)
 	for _, w := range widgets {
@@ -87,6 +82,7 @@ func Main() {
 	}
 	keybindsGlobal(g)
 
+	// main loop running
 	if err := g.MainLoop(); err != nil && !gocui.IsQuit(err) {
 		log.Panicln(err)
 	}
@@ -113,10 +109,20 @@ func setupManagers() []WidgetManager {
 	return managers
 }
 
-func getWidget(name string) *WidgetManager {
+// Handle layouts of all the widgets (called by managerFunc)
+func handleLayouts(g *gocui.Gui) error {
+	for _, w := range widgets {
+		if err := w.Layout(g); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func getWidget(name string) WidgetManager {
 	for _, w := range widgets {
 		if w.GetName() == name {
-			return &w
+			return w
 		}
 	}
 	return nil
