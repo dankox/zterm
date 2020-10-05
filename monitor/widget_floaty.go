@@ -129,7 +129,6 @@ func closeFloatyWidget(g *gocui.Gui, v *gocui.View) error {
 				wf.Layout(g)                                    // delete the view and set previous view as current
 				widgets = append(widgets[:i], widgets[i+1:]...) // remove from widgets
 				if getConsoleWidget().Enabled {
-					g.Cursor = true
 					g.SetCurrentView(cmdPrompt)
 				}
 			} else {

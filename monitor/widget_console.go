@@ -126,7 +126,6 @@ func (wc *WidgetConsole) ExecCmd(cmd string) {
 	// handle command outputs
 	if len(out) > 0 {
 		addPopupWidget("console-output", out)
-		gui.Cursor = false
 	}
 	if err != nil {
 		fmt.Fprintf(wc.gview, ">> \nerror: %v", err)
@@ -176,10 +175,8 @@ func showConsole(g *gocui.Gui, v *gocui.View) error {
 	if wc := getConsoleWidget(); wc != nil {
 		if wc.IsHidden() {
 			wc.Enabled = true
-			g.Cursor = true
 		} else {
 			wc.Enabled = false
-			g.Cursor = false
 			// check if current view was pointing to this view before (just to be sure!)
 			if g.CurrentView() != nil && g.CurrentView().Name() == cmdPrompt {
 				if wc.lastView != "" {

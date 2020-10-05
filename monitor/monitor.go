@@ -116,6 +116,14 @@ func handleLayouts(g *gocui.Gui) error {
 			return err
 		}
 	}
+	// handle cursor visibility (for editable only)
+	if v := g.CurrentView(); v != nil {
+		if v.Editable {
+			g.Cursor = true
+		} else {
+			g.Cursor = false
+		}
+	}
 	return nil
 }
 

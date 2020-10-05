@@ -50,13 +50,6 @@ func commandExecute(command string) (string, string, error) {
 		slurpOut, _ := ioutil.ReadAll(stdout)
 		output := string(slurpOut)
 
-		// if cw := getConsoleWidget(); cw != nil {
-		// 	if v, err := gui.View(cw.lastView); err == nil {
-		// 		fmt.Fprint(v, output)
-		// 		output = ""
-		// 	}
-		// }
-
 		if err := c.Wait(); err != nil {
 			return "", "", err
 		}
