@@ -19,6 +19,8 @@ type WidgetFloaty struct {
 	Editable bool
 }
 
+var pageScroll = 10
+
 // NewWidgetFloaty creates a widget for GUI which doesn't contribute to the layout.
 // This type of widget is displayed on top over the layout.
 func NewWidgetFloaty(name string, x, y int, width int, height int, body string) *WidgetFloaty {
@@ -67,16 +69,24 @@ func (wf *WidgetFloaty) Layout(g *gocui.Gui) error {
 			return fmt.Errorf("view %v: %v", wf.name, err)
 		}
 		fmt.Fprint(v, wf.body)
+		// v.Autoscroll = true
+		// Autoscroll done manualy (because of later code, to get correct origin)
+		_, vy := v.Size()
+		v.SetOrigin(0, v.LinesHeight()-vy)
 	}
 	wf.gview = v // set pointer to GUI View
 
+	// get position & height
+	lh := v.LinesHeight()
+	_, vy := v.Size()
+	_, oy := v.Origin()
 	// set title
-	v.Title = fmt.Sprintf("< %v >", wf.name)
+	v.Title = fmt.Sprintf("< %v - (%v-%v/%v) >", wf.name, oy, oy+vy, lh)
+	// v.Wrap = true // set wrapping for long lines
 	g.SetViewOnTop(wf.name)
 
 	// set current view for keys and stuff...
 	g.SetCurrentView(wf.name)
-	v.Autoscroll = true
 
 	return nil
 }
@@ -85,6 +95,67 @@ func (wf *WidgetFloaty) Layout(g *gocui.Gui) error {
 func (wf *WidgetFloaty) Keybinds(g *gocui.Gui) {
 	// Esc close the widget
 	if err := g.SetKeybinding(wf.name, gocui.KeyEsc, gocui.ModNone, closeFloatyWidget); err != nil {
+		log.Panicln(err)
+	}
+	// Scrolling
+	if err := g.SetKeybinding(wf.name, gocui.KeyPgup, gocui.ModNone,
+		func(g *gocui.Gui, v *gocui.View) error {
+			scrollView(v, -pageScroll)
+			return nil
+		}); err != nil {
+		log.Panicln(err)
+	}
+	if err := g.SetKeybinding(wf.name, gocui.KeyPgdn, gocui.ModNone,
+		func(g *gocui.Gui, v *gocui.View) error {
+			scrollView(v, pageScroll)
+			return nil
+		}); err != nil {
+		log.Panicln(err)
+	}
+	if err := g.SetKeybinding(wf.name, gocui.KeyHome, gocui.ModNone,
+		func(g *gocui.Gui, v *gocui.View) error {
+			scrollView(v, -v.LinesHeight())
+			vx, _ := v.Origin()
+			sideScrollView(v, -vx)
+			return nil
+		}); err != nil {
+		log.Panicln(err)
+	}
+	if err := g.SetKeybinding(wf.name, gocui.KeyEnd, gocui.ModNone,
+		func(g *gocui.Gui, v *gocui.View) error {
+			scrollView(v, v.LinesHeight())
+			vx, _ := v.Origin()
+			sideScrollView(v, -vx)
+			return nil
+		}); err != nil {
+		log.Panicln(err)
+	}
+	if err := g.SetKeybinding(wf.name, gocui.KeyArrowUp, gocui.ModNone,
+		func(g *gocui.Gui, v *gocui.View) error {
+			scrollView(v, -1)
+			return nil
+		}); err != nil {
+		log.Panicln(err)
+	}
+	if err := g.SetKeybinding(wf.name, gocui.KeyArrowDown, gocui.ModNone,
+		func(g *gocui.Gui, v *gocui.View) error {
+			scrollView(v, 1)
+			return nil
+		}); err != nil {
+		log.Panicln(err)
+	}
+	if err := g.SetKeybinding(wf.name, gocui.KeyArrowLeft, gocui.ModNone,
+		func(g *gocui.Gui, v *gocui.View) error {
+			sideScrollView(v, -1)
+			return nil
+		}); err != nil {
+		log.Panicln(err)
+	}
+	if err := g.SetKeybinding(wf.name, gocui.KeyArrowRight, gocui.ModNone,
+		func(g *gocui.Gui, v *gocui.View) error {
+			sideScrollView(v, 1)
+			return nil
+		}); err != nil {
 		log.Panicln(err)
 	}
 }
@@ -137,5 +208,38 @@ func closeFloatyWidget(g *gocui.Gui, v *gocui.View) error {
 		}
 	}
 
+	return nil
+}
+
+func scrollView(v *gocui.View, dy int) error {
+	if v != nil {
+		v.Autoscroll = false
+		ox, oy := v.Origin()
+		lh := v.LinesHeight()
+		// verify to not scroll out
+		if oy+dy < 0 {
+			dy = -oy
+		} else if oy+dy >= (lh - 5) {
+			dy = lh - oy - 5 // scroll at the bottom to display last 5 lines
+		}
+		if err := v.SetOrigin(ox, oy+dy); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func sideScrollView(v *gocui.View, dx int) error {
+	if v != nil {
+		v.Wrap = false
+		ox, oy := v.Origin()
+		// verify to not scroll out
+		if ox+dx < 0 {
+			dx = -ox
+		}
+		if err := v.SetOrigin(ox+dx, oy); err != nil {
+			return err
+		}
+	}
 	return nil
 }

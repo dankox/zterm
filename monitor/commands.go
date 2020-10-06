@@ -10,7 +10,7 @@ import (
 )
 
 var cmdList = []string{"ls", "pwd", "cd", "whoami", "which", "find", "grep",
-	"addview", "exit"}
+	"addview", "exit", "code"}
 
 func commandExecute(command string) (string, string, error) {
 	cmdParts := strings.Split(command, " ")
@@ -34,7 +34,34 @@ func commandExecute(command string) (string, string, error) {
 		// run layouts to sort the order (console on top)
 		widget.Layout(gui)
 		getConsoleWidget().Layout(gui)
+	case "code":
+		var c *exec.Cmd
+		if len(cmdParts) > 1 {
+			c = exec.Command("code", cmdParts[1])
+		} else {
+			c = exec.Command("code", "--help")
+		}
+		stderr, err := c.StderrPipe()
+		stdout, err := c.StdoutPipe()
+		if err != nil {
+			return "", "", err
+		}
+		if err := c.Start(); err != nil {
+			return "", "", err
+		}
 
+		slurpErr, _ := ioutil.ReadAll(stderr)
+		slurpOut, _ := ioutil.ReadAll(stdout)
+		output := string(slurpOut)
+
+		if err := c.Wait(); err != nil {
+			return "", "", err
+		}
+
+		if len(slurpErr) > 0 {
+			return "", "", errors.New(string(slurpErr))
+		}
+		return output, "", nil
 	default:
 		// handle bash command execution
 		c := exec.Command("sh", "-c", command)
