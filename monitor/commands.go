@@ -1,10 +1,11 @@
 package monitor
 
 import (
+	"context"
 	"errors"
-	"io/ioutil"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/awesome-gocui/gocui"
 )
@@ -24,7 +25,10 @@ var cmdAuto = map[string][]string{
 	"ls":     {"#list-dir"},
 }
 
-func commandExecute(command string) (string, string, error) {
+// command timeout... if running for longer, it will be killed (to not get stuck)
+var cmdTimeout = 3 * time.Second
+
+func commandExecute(command string) (string, error) {
 	cmdParts := strings.Split(strings.TrimSpace(command), " ")
 	switch cmdParts[0] {
 	case "exit":
@@ -32,9 +36,9 @@ func commandExecute(command string) (string, string, error) {
 			return gocui.ErrQuit
 		})
 	case "help":
-		return "", "help: command not implemented yet!", nil
+		return "help: command not implemented yet!", nil
 	case "error":
-		return "", "", errors.New("command failed")
+		return "", errors.New("command failed")
 	case "addview":
 		config.Views[cmdParts[1]] = 10
 		viewMaxSize += 10
@@ -47,57 +51,33 @@ func commandExecute(command string) (string, string, error) {
 		widget.Layout(gui)
 		getConsoleWidget().Layout(gui)
 	case "code":
+		// handle vscode command execution
+		ctx, cancel := context.WithTimeout(context.Background(), cmdTimeout)
+		defer cancel()
 		var c *exec.Cmd
 		if len(cmdParts) > 1 {
-			c = exec.Command("code", cmdParts[1])
+			c = exec.CommandContext(ctx, "code", cmdParts[1])
 		} else {
-			c = exec.Command("code", "--help")
+			c = exec.CommandContext(ctx, "code", "--help")
 		}
-		stderr, err := c.StderrPipe()
-		stdout, err := c.StdoutPipe()
+		stdouterr, err := c.CombinedOutput()
+		// if err := c.Run(); err != nil {
 		if err != nil {
-			return "", "", err
+			return string(stdouterr), err
 		}
-		if err := c.Start(); err != nil {
-			return "", "", err
-		}
-
-		slurpErr, _ := ioutil.ReadAll(stderr)
-		slurpOut, _ := ioutil.ReadAll(stdout)
-		output := string(slurpOut)
-
-		if err := c.Wait(); err != nil {
-			return "", "", err
-		}
-
-		if len(slurpErr) > 0 {
-			return "", "", errors.New(string(slurpErr))
-		}
-		return output, "", nil
+		return string(stdouterr), nil
 	default:
 		// handle bash command execution
-		c := exec.Command("sh", "-c", command)
-		stderr, err := c.StderrPipe()
-		stdout, err := c.StdoutPipe()
+		ctx, cancel := context.WithTimeout(context.Background(), cmdTimeout)
+		defer cancel()
+		c := exec.CommandContext(ctx, "sh", "-c", command)
+		stdouterr, err := c.CombinedOutput()
+		// if err := c.Run(); err != nil {
 		if err != nil {
-			return "", "", err
+			return string(stdouterr), err
 		}
-		if err := c.Start(); err != nil {
-			return "", "", err
-		}
-		slurpErr, _ := ioutil.ReadAll(stderr)
-		slurpOut, _ := ioutil.ReadAll(stdout)
-		output := string(slurpOut)
-
-		if err := c.Wait(); err != nil {
-			return "", "", err
-		}
-
-		if len(slurpErr) > 0 {
-			return "", "", errors.New(string(slurpErr))
-		}
-		return output, "", nil
+		return string(stdouterr), nil
 	}
 
-	return "", "", nil
+	return "", nil
 }

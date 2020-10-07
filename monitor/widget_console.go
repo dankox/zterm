@@ -98,6 +98,12 @@ func (wc *WidgetConsole) Clear() {
 	fmt.Fprintf(wc.gview, ">> \n")
 }
 
+// Error print error message to the console output line (second line below prompt)
+func (wc *WidgetConsole) Error(msg string) {
+	wc.gview.Clear()
+	fmt.Fprintf(wc.gview, ">> \n\x1b[31;1merror: \x1b[0m%v", msg)
+}
+
 // Print message to the console output line (second line below prompt)
 func (wc *WidgetConsole) Print(msg string) {
 	wc.gview.Clear()
@@ -140,17 +146,27 @@ func (wc *WidgetConsole) ExecCmd(cmd string) {
 	wc.cmdHistory = append(wc.cmdHistory, cmd)
 	wc.histIndex = len(wc.cmdHistory)
 	// executing command
-	out, msg, err := commandExecute(cmd)
+	out, err := commandExecute(cmd)
+	out = strings.TrimSpace(out)
 	// handle command outputs
-	if len(out) > 0 {
-		addPopupWidget("console-output", out)
-	}
 	if err != nil {
-		wc.Printf("error: %v", err)
-	} else if len(msg) > 0 {
-		wc.Print(msg)
+		if len(out) == 0 {
+			// wc.Printf("error: %v", err.Error())
+			wc.Error(err.Error())
+		} else if len(strings.Split(out, "\n")) == 1 {
+			wc.Error(out)
+		} else {
+			addPopupWidget("console-output", out, gFrameError)
+			wc.Error(err.Error())
+			return
+		}
+	} else if len(strings.Split(out, "\n")) == 1 {
+		wc.Print(out)
 	} else {
 		wc.Clear()
+		if len(out) > 0 {
+			addPopupWidget("console-output", out, 0)
+		}
 	}
 }
 

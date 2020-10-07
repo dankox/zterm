@@ -176,7 +176,12 @@ func (wf *WidgetFloaty) IsHidden() bool {
 	return wf.Enabled == false
 }
 
-func addPopupWidget(name string, body string) {
+func addPopupWidget(name string, body string, color gocui.Attribute) {
+	if color != 0 {
+		// set color for the frame
+		gui.SelFrameColor = color
+		gui.SelFgColor = color
+	}
 	// Enabled, display...
 	maxX, maxY := gui.Size()
 	// compute correct position and width
@@ -203,6 +208,9 @@ func closeFloatyWidget(g *gocui.Gui, v *gocui.View) error {
 				if getConsoleWidget().Enabled {
 					g.SetCurrentView(cmdPrompt)
 				}
+				// return highlight colors to the default
+				g.SelFrameColor = gFrameHighlight
+				g.SelFgColor = gFrameHighlight
 			} else {
 				panic("Not a WidgetFloaty to close! Something went wrong!")
 			}
