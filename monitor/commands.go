@@ -9,18 +9,30 @@ import (
 	"github.com/awesome-gocui/gocui"
 )
 
-var cmdList = []string{"ls", "pwd", "cd", "whoami", "which", "find", "grep",
-	"addview", "exit", "code"}
+// autocomplete map (command with subcommands/operands)
+var cmdAuto = map[string][]string{
+	"addview": {"test-1", "test-2"},
+	"code":    {},
+	"error":   {},
+	"exit":    {},
+	"help":    {},
+
+	"pwd":    {},
+	"whoami": {},
+	"which":  {},
+	"cd":     {},
+	"ls":     {"#list-dir"},
+}
 
 func commandExecute(command string) (string, string, error) {
-	cmdParts := strings.Split(command, " ")
+	cmdParts := strings.Split(strings.TrimSpace(command), " ")
 	switch cmdParts[0] {
 	case "exit":
 		gui.Update(func(g *gocui.Gui) error {
 			return gocui.ErrQuit
 		})
 	case "help":
-		return "command not implemented yet!", "help", nil
+		return "", "help: command not implemented yet!", nil
 	case "error":
 		return "", "", errors.New("command failed")
 	case "addview":

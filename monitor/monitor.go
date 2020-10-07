@@ -37,10 +37,12 @@ var (
 		Server{},
 		map[string]int{},
 	}
-	viewOrder   []string
-	viewMaxSize = 0
-	widgets     []WidgetManager
-	gui         *gocui.Gui
+	viewOrder      []string
+	viewMaxSize    = 0
+	widgets        []WidgetManager
+	gui            *gocui.Gui
+	gSelFrameColor = gocui.ColorYellow
+	gFrameColor    = gocui.ColorDefault
 )
 
 // Main function of monitor package
@@ -111,6 +113,9 @@ func setupManagers() []WidgetManager {
 
 // Handle layouts of all the widgets (called by managerFunc)
 func handleLayouts(g *gocui.Gui) error {
+	// prepare highlight colors
+	g.SelFrameColor = gSelFrameColor
+	g.SelFgColor = gSelFrameColor
 	for _, w := range widgets {
 		if err := w.Layout(g); err != nil {
 			return err

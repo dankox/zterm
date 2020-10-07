@@ -59,7 +59,8 @@ func (wc *WidgetConsole) Layout(g *gocui.Gui) error {
 		if !gocui.IsUnknownView(err) {
 			return fmt.Errorf("view %v: %v", cmdView, err)
 		}
-		fmt.Fprint(v, ">> ")
+		wc.gview = v // set pointer to GUI View for next command
+		wc.Clear()
 	}
 	wc.gview = v // set pointer to GUI View (only for view, not for input)
 
@@ -89,6 +90,25 @@ func (wc *WidgetConsole) Layout(g *gocui.Gui) error {
 	v.Editor = gocui.EditorFunc(consoleEditor)
 
 	return nil
+}
+
+// Clear console output line (still draw console prompt)
+func (wc *WidgetConsole) Clear() {
+	wc.gview.Clear()
+	fmt.Fprintf(wc.gview, ">> \n")
+}
+
+// Print message to the console output line (second line below prompt)
+func (wc *WidgetConsole) Print(msg string) {
+	wc.gview.Clear()
+	fmt.Fprintf(wc.gview, ">> \n%v", msg)
+}
+
+// Printf print formatted message to the console output line (second line below prompt)
+func (wc *WidgetConsole) Printf(format string, a ...interface{}) {
+	wc.gview.Clear()
+	format = ">> \n" + format
+	fmt.Fprintf(wc.gview, format, a)
 }
 
 // Keybinds for specific widget
@@ -121,18 +141,16 @@ func (wc *WidgetConsole) ExecCmd(cmd string) {
 	wc.histIndex = len(wc.cmdHistory)
 	// executing command
 	out, msg, err := commandExecute(cmd)
-	// clear console output view (cmdView)
-	wc.gview.Clear()
 	// handle command outputs
 	if len(out) > 0 {
 		addPopupWidget("console-output", out)
 	}
 	if err != nil {
-		fmt.Fprintf(wc.gview, ">> \nerror: %v", err)
+		wc.Printf("error: %v", err)
 	} else if len(msg) > 0 {
-		fmt.Fprintf(wc.gview, ">> \n%v", msg)
+		wc.Print(msg)
 	} else {
-		fmt.Fprint(wc.gview, ">> \n")
+		wc.Clear()
 	}
 }
 
@@ -195,6 +213,14 @@ func showConsole(g *gocui.Gui, v *gocui.View) error {
 
 // Console Editor (special setup for keys)
 func consoleEditor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
+	var wc *WidgetConsole
+	if wc = getConsoleWidget(); wc == nil {
+		// if no console widget... wtf are we doing here??
+		return
+	}
+	// clear before processing keystrokes
+	wc.Clear()
+
 	switch {
 	case ch != 0 && mod == 0:
 		v.EditWrite(ch)
@@ -209,9 +235,7 @@ func consoleEditor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 	case key == gocui.KeyEnter:
 		// command exec
 		if line, err := v.Line(0); err == nil {
-			if wc := getConsoleWidget(); wc != nil {
-				wc.ExecCmd(line)
-			}
+			wc.ExecCmd(line)
 			v.Clear()
 			v.SetCursor(0, 0)
 		}
@@ -259,12 +283,40 @@ func consoleEditor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 func autoComplete(g *gocui.Gui, v *gocui.View) error {
 	// autocompletion
 	if line, err := v.Line(0); err == nil {
-		for _, c := range cmdList {
-			if strings.HasPrefix(c, line) {
-				v.Clear()
-				fmt.Fprint(v, c)
-				v.SetCursor(len(c), 0)
+		cmdParts := strings.Split(line, " ")
+		clen := len(cmdParts)
+		var final []string
+		if clen == 1 {
+			autocomp := cmdParts[0]
+			for c := range cmdAuto {
+				if strings.HasPrefix(c, autocomp) {
+					final = append(final, c)
+				}
 			}
+		} else if clen == 2 {
+			autocomp := cmdParts[1]
+			for _, c := range cmdAuto[cmdParts[0]] {
+				if strings.HasPrefix(c, autocomp) {
+					final = append(final, c)
+				}
+			}
+		}
+		// finish command or process output for console message
+		if len(final) == 1 {
+			v.Clear()
+			var finalcmd string
+			if clen == 1 {
+				finalcmd = final[0] + " "
+			} else if clen == 2 {
+				finalcmd = cmdParts[0] + " " + final[0] + " "
+			}
+			fmt.Fprint(v, finalcmd)
+			v.SetCursor(len(finalcmd), 0)
+			// TODO: do check for nil???
+			getConsoleWidget().Clear()
+		} else if len(final) > 1 {
+			wc := getConsoleWidget()
+			wc.Print(strings.Join(final, " "))
 		}
 	}
 	return nil

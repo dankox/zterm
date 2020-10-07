@@ -87,6 +87,7 @@ func (wf *WidgetFloaty) Layout(g *gocui.Gui) error {
 
 	// set current view for keys and stuff...
 	g.SetCurrentView(wf.name)
+	g.Highlight = true // highlight the popup
 
 	return nil
 }
@@ -216,11 +217,14 @@ func scrollView(v *gocui.View, dy int) error {
 		v.Autoscroll = false
 		ox, oy := v.Origin()
 		lh := v.LinesHeight()
+		v.Subtitle = ""
 		// verify to not scroll out
 		if oy+dy < 0 {
 			dy = -oy
+			v.Subtitle = "[ TOP ]"
 		} else if oy+dy >= (lh - 5) {
 			dy = lh - oy - 5 // scroll at the bottom to display last 5 lines
+			v.Subtitle = "[ BOTTOM ]"
 		}
 		if err := v.SetOrigin(ox, oy+dy); err != nil {
 			return err
