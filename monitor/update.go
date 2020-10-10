@@ -1,32 +1,8 @@
 package monitor
 
 import (
-	"fmt"
-
 	"github.com/awesome-gocui/gocui"
 )
-
-func updateLayout(g *gocui.Gui, v *gocui.View) error {
-
-	// gocui.Update() can be called from goroutine to update content
-	go g.Update(func(g *gocui.Gui) error {
-		nv := g.CurrentView()
-		if nv == nil {
-			return nil
-		}
-		// skip for command prompt
-		if nv.Name() == cmdPrompt {
-			return nil
-		}
-		nv.Wrap = true
-		nv.Clear()
-		fmt.Fprintf(nv, "Hello random z/OS world!\nhost = %v\nuser = %v\n", config.Server.Host, config.Server.User)
-		fmt.Fprintf(nv, "views = %v\n", config.Views)
-		return nil
-	})
-
-	return nil
-}
 
 func changeView(g *gocui.Gui, v *gocui.View) error {
 	curr, next := "", ""

@@ -61,7 +61,6 @@ func commandExecute(command string) (string, error) {
 			c = exec.CommandContext(ctx, "code", "--help")
 		}
 		stdouterr, err := c.CombinedOutput()
-		// if err := c.Run(); err != nil {
 		if err != nil {
 			return string(stdouterr), err
 		}
@@ -72,7 +71,6 @@ func commandExecute(command string) (string, error) {
 		defer cancel()
 		c := exec.CommandContext(ctx, "sh", "-c", command)
 		stdouterr, err := c.CombinedOutput()
-		// if err := c.Run(); err != nil {
 		if err != nil {
 			return string(stdouterr), err
 		}
@@ -80,4 +78,20 @@ func commandExecute(command string) (string, error) {
 	}
 
 	return "", nil
+}
+
+// simple function for testing widgets
+func cmdSyslog() (string, error) {
+	// handle bash command execution
+	if (time.Now().Second() % 30) < 10 {
+		return "", errors.New("WTF??? Eroooooooooooooooorrr... ")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), cmdTimeout)
+	defer cancel()
+	c := exec.CommandContext(ctx, "sh", "-c", "ls -l ~ && date")
+	stdouterr, err := c.CombinedOutput()
+	if err != nil {
+		return string(stdouterr), err
+	}
+	return string(stdouterr), nil
 }

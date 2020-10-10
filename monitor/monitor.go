@@ -44,7 +44,8 @@ var (
 	gui         *gocui.Gui
 
 	// gFrameHighlight = gocui.ColorYellow
-	gFrameHighlight = gocui.ColorCyan
+	gFrameHighlight = gocui.ColorDefault
+	gFrameOk        = gocui.ColorCyan
 	gFrameError     = gocui.ColorRed
 	gFrameColor     = gocui.ColorDefault
 )
@@ -107,6 +108,10 @@ func setupManagers() []WidgetManager {
 	// add configured views
 	for i, v := range viewOrder {
 		widget := NewWidget(v, i, config.Views[v], fmt.Sprintf("Loading %v...", v))
+		if widget.GetName() == "2-syslog" {
+			widget.Fun = cmdSyslog
+			widget.StartFun()
+		}
 		managers = append(managers, widget)
 	}
 
@@ -136,7 +141,7 @@ func handleLayouts(g *gocui.Gui) error {
 	return nil
 }
 
-func getWidget(name string) WidgetManager {
+func getWidgetManager(name string) WidgetManager {
 	for _, w := range widgets {
 		if w.GetName() == name {
 			return w
@@ -159,6 +164,18 @@ func getConsoleWidget() *WidgetConsole {
 		if w.GetName() == cmdView {
 			if wc, ok := w.(*WidgetConsole); ok {
 				return wc
+			}
+			return nil
+		}
+	}
+	return nil
+}
+
+func getWidget(name string) *Widget {
+	for _, w := range widgets {
+		if w.GetName() == name {
+			if ww, ok := w.(*Widget); ok {
+				return ww
 			}
 			return nil
 		}

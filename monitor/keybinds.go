@@ -16,11 +16,6 @@ func keybindsGlobal(g *gocui.Gui) {
 		log.Panicln(err)
 	}
 
-	// test keybind for "refresh" -> show config
-	if err := g.SetKeybinding("", gocui.KeyCtrlR, gocui.ModNone, updateLayout); err != nil {
-		log.Panicln(err)
-	}
-
 	// tab thru next
 	if err := g.SetKeybinding("", gocui.KeyTab, gocui.ModNone, changeView); err != nil {
 		log.Panicln(err)

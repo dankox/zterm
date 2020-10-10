@@ -165,7 +165,7 @@ func (wc *WidgetConsole) ExecCmd(cmd string) {
 	} else {
 		wc.Clear()
 		if len(out) > 0 {
-			addPopupWidget("console-output", out, 0)
+			addPopupWidget("console-output", out, gFrameOk)
 		}
 	}
 }
