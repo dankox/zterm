@@ -1,6 +1,7 @@
 package monitor
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"time"
@@ -18,8 +19,9 @@ type Widget struct {
 	x, y    int // for floaty widgets
 	gview   *gocui.View
 	stopFun chan bool
+	cancel  context.CancelFunc
 	refresh time.Duration
-	Fun     func() (string, error)
+	Fun     func(context.Context) (string, error)
 	Enabled bool
 }
 
@@ -94,7 +96,16 @@ func (w *Widget) Layout(g *gocui.Gui) error {
 func (w *Widget) Keybinds(g *gocui.Gui) {
 	// special keybinds for the widgets
 	// change refresh rate
-	if err := g.SetKeybinding("", gocui.KeyCtrlR, gocui.ModNone, changeRefresh); err != nil {
+	if err := g.SetKeybinding(w.name, gocui.KeyCtrlR, gocui.ModNone, changeRefresh); err != nil {
+		log.Panicln(err)
+	}
+	// cancel key
+	if err := g.SetKeybinding(w.name, gocui.KeyCtrlZ, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		if v.Name() == w.name && w.cancel != nil {
+			w.cancel()
+		}
+		return nil
+	}); err != nil {
 		log.Panicln(err)
 	}
 }
@@ -121,12 +132,14 @@ func (w *Widget) StartFun() {
 	if w.Fun == nil {
 		return
 	}
+	ctx, cancel := context.WithCancel(context.Background())
+	w.cancel = cancel // setup cancel
 
 	// setup goroutine
 	go func() {
 		// setup action function
 		action := func() {
-			output, err := w.Fun()
+			output, err := w.Fun(ctx)
 			gui.Update(func(g *gocui.Gui) error {
 				if err != nil {
 					fmt.Fprintf(w.gview, "\nerror: %v\n", err.Error())

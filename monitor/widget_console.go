@@ -1,6 +1,7 @@
 package monitor
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
@@ -14,6 +15,7 @@ type WidgetConsole struct {
 	lastView   string
 	cmdHistory []string
 	histIndex  int
+	cancel     context.CancelFunc
 	Enabled    bool
 }
 
@@ -123,6 +125,15 @@ func (wc *WidgetConsole) Keybinds(g *gocui.Gui) {
 	if err := g.SetKeybinding(cmdPrompt, gocui.KeyTab, gocui.ModNone, autoComplete); err != nil {
 		log.Panicln(err)
 	}
+	// cancel key
+	if err := g.SetKeybinding(cmdPrompt, gocui.KeyCtrlZ, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		if v.Name() == cmdPrompt && wc.cancel != nil {
+			wc.cancel()
+		}
+		return nil
+	}); err != nil {
+		log.Panicln(err)
+	}
 }
 
 // GetName returns console widget name
@@ -146,27 +157,30 @@ func (wc *WidgetConsole) ExecCmd(cmd string) {
 	wc.cmdHistory = append(wc.cmdHistory, cmd)
 	wc.histIndex = len(wc.cmdHistory)
 	// executing command
-	out, err := commandExecute(cmd)
+	ctx, cancel := context.WithCancel(context.Background())
+	wc.cancel = cancel
+	outchan := make(chan string, 10) // should be buffered???
+	errchan := make(chan string, 10) // should be buffered???
+	out, err := commandExecute(ctx, outchan, errchan, cmd)
 	out = strings.TrimSpace(out)
 	// handle command outputs
 	if err != nil {
 		if len(out) == 0 {
-			// wc.Printf("error: %v", err.Error())
 			wc.Error(err.Error())
 		} else if len(strings.Split(out, "\n")) == 1 {
 			wc.Error(out)
 		} else {
-			addPopupWidget("console-output", out, gFrameError)
+			addPopupWidget("console-output", gFrameError, outchan, errchan, cancel)
+			wc.cancel = nil // remove cancel from console, as it's passed to floaty widget
 			wc.Error(err.Error())
 			return
 		}
-	} else if len(strings.Split(out, "\n")) == 1 {
+	} else if len(out) > 0 && len(strings.Split(out, "\n")) == 1 {
 		wc.Print(out)
 	} else {
 		wc.Clear()
-		if len(out) > 0 {
-			addPopupWidget("console-output", out, gFrameOk)
-		}
+		addPopupWidget("console-output", gFrameOk, outchan, errchan, cancel)
+		wc.cancel = nil // remove cancel from console, as it's passed to floaty widget
 	}
 }
 

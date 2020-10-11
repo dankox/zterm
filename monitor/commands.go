@@ -1,6 +1,7 @@
 package monitor
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"os/exec"
@@ -28,7 +29,7 @@ var cmdAuto = map[string][]string{
 // command timeout... if running for longer, it will be killed (to not get stuck)
 var cmdTimeout = 3 * time.Second
 
-func commandExecute(command string) (string, error) {
+func commandExecute(ctx context.Context, outchan chan<- string, errchan chan<- string, command string) (string, error) {
 	cmdParts := strings.Split(strings.TrimSpace(command), " ")
 	switch cmdParts[0] {
 	case "exit":
@@ -52,8 +53,6 @@ func commandExecute(command string) (string, error) {
 		getConsoleWidget().Layout(gui)
 	case "code":
 		// handle vscode command execution
-		ctx, cancel := context.WithTimeout(context.Background(), cmdTimeout)
-		defer cancel()
 		var c *exec.Cmd
 		if len(cmdParts) > 1 {
 			c = exec.CommandContext(ctx, "code", cmdParts[1])
@@ -61,33 +60,53 @@ func commandExecute(command string) (string, error) {
 			c = exec.CommandContext(ctx, "code", "--help")
 		}
 		stdouterr, err := c.CombinedOutput()
+		outchan <- string(stdouterr)
+		close(outchan)
 		if err != nil {
-			return string(stdouterr), err
+			return "", err
 		}
-		return string(stdouterr), nil
+		return "", nil
 	default:
 		// handle bash command execution
-		ctx, cancel := context.WithTimeout(context.Background(), cmdTimeout)
-		defer cancel()
 		c := exec.CommandContext(ctx, "sh", "-c", command)
-		stdouterr, err := c.CombinedOutput()
+		outPipe, err := c.StdoutPipe()
 		if err != nil {
-			return string(stdouterr), err
+			return "", err
 		}
-		return string(stdouterr), nil
+		c.Stderr = c.Stdout // combine stdout and stderr
+		if err := c.Start(); err != nil {
+			return "", err
+		}
+
+		// setup output processing
+		go func() {
+			scan := bufio.NewScanner(outPipe)
+			for scan.Scan() {
+				outchan <- scan.Text()
+			}
+			close(outchan)
+		}()
+
+		// setup wait function
+		go func() {
+			if err := c.Wait(); err != nil {
+				errchan <- "error: " + err.Error()
+			}
+			close(errchan)
+		}()
+
+		return "", nil
 	}
 
 	return "", nil
 }
 
 // simple function for testing widgets
-func cmdSyslog() (string, error) {
+func cmdSyslog(ctx context.Context) (string, error) {
 	// handle bash command execution
 	if (time.Now().Second() % 30) < 10 {
 		return "", errors.New("WTF??? Eroooooooooooooooorrr... ")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), cmdTimeout)
-	defer cancel()
 	c := exec.CommandContext(ctx, "sh", "-c", "ls -l ~ && date")
 	stdouterr, err := c.CombinedOutput()
 	if err != nil {

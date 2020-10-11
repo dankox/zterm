@@ -1,6 +1,7 @@
 package monitor
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -15,6 +16,9 @@ type WidgetFloaty struct {
 	width    int
 	height   int
 	gview    *gocui.View
+	cancel   context.CancelFunc
+	errchan  chan string
+	outchan  chan string
 	Enabled  bool
 	Editable bool
 }
@@ -69,10 +73,13 @@ func (wf *WidgetFloaty) Layout(g *gocui.Gui) error {
 			return fmt.Errorf("view %v: %v", wf.name, err)
 		}
 		fmt.Fprint(v, wf.body)
-		// v.Autoscroll = true
 		// Autoscroll done manualy (because of later code, to get correct origin)
 		_, vy := v.Size()
 		v.SetOrigin(0, v.LinesHeight()-vy)
+		if wf.outchan != nil {
+			// start updateOutput to update content of the widget from channel
+			wf.updateOutput()
+		}
 	}
 	wf.gview = v // set pointer to GUI View
 
@@ -88,6 +95,9 @@ func (wf *WidgetFloaty) Layout(g *gocui.Gui) error {
 	// set current view for keys and stuff...
 	g.SetCurrentView(wf.name)
 	g.Highlight = true // highlight the popup
+
+	wf.gview.Clear()
+	fmt.Fprintln(wf.gview, wf.body)
 
 	return nil
 }
@@ -176,7 +186,36 @@ func (wf *WidgetFloaty) IsHidden() bool {
 	return wf.Enabled == false
 }
 
-func addPopupWidget(name string, body string, color gocui.Attribute) {
+func (wf *WidgetFloaty) updateOutput() {
+	// this shouldn't happen, but just check it to be sure
+	if wf.outchan == nil {
+		return
+	}
+	go func() {
+		for out := range wf.outchan {
+			wf.body += out + "\n"
+			gui.UpdateAsync(func(g *gocui.Gui) error {
+				// if wf.gview != nil {
+				// 	wf.gview.Clear()
+				// 	fmt.Fprintln(wf.gview, output)
+				// }
+				return nil
+			})
+		}
+		for err := range wf.errchan {
+			gui.UpdateAsync(func(g *gocui.Gui) error {
+				if wf.gview != nil {
+					g.SelFrameColor = gFrameError
+					g.SelFgColor = gFrameError
+					fmt.Fprintln(wf.gview, err)
+				}
+				return nil
+			})
+		}
+	}()
+}
+
+func addPopupWidget(name string, color gocui.Attribute, outchan chan string, errchan chan string, cncl context.CancelFunc) {
 	if color != 0 {
 		// set color for the frame
 		gui.SelFrameColor = color
@@ -189,7 +228,10 @@ func addPopupWidget(name string, body string, color gocui.Attribute) {
 	height := maxY - 5 - 10
 
 	// prepare widgets
-	widget := NewWidgetFloaty(name, 0, 0, width, height, body)
+	widget := NewWidgetFloaty(name, 0, 0, width, height, "")
+	widget.cancel = cncl
+	widget.outchan = outchan
+	widget.errchan = errchan
 	widget.Enabled = true
 	widgets = append(widgets, widget)
 	widget.Keybinds(gui)
@@ -202,6 +244,13 @@ func closeFloatyWidget(g *gocui.Gui, v *gocui.View) error {
 	for i, w := range widgets {
 		if w.GetName() == v.Name() {
 			if wf, ok := w.(*WidgetFloaty); ok {
+				if wf.cancel != nil {
+					wf.cancel()
+					for range wf.outchan {
+						// fmt.Println(out)
+						// should drain it... shouldn't loop forever
+					}
+				}
 				wf.Enabled = false
 				wf.Layout(g)                                    // delete the view and set previous view as current
 				widgets = append(widgets[:i], widgets[i+1:]...) // remove from widgets
