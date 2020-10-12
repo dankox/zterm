@@ -94,8 +94,10 @@ func Main() {
 
 	// main loop running
 	if err := g.MainLoop(); err != nil && !gocui.IsQuit(err) {
+		g.Cursor = true
 		log.Panicln(err)
 	}
+	g.Cursor = true
 }
 
 // setupManagers prepare list of widgets where each of them manage its own layout and data

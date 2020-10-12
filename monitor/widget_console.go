@@ -158,29 +158,30 @@ func (wc *WidgetConsole) ExecCmd(cmd string) {
 	wc.histIndex = len(wc.cmdHistory)
 	// executing command
 	ctx, cancel := context.WithCancel(context.Background())
-	wc.cancel = cancel
-	outchan := make(chan string, 10) // should be buffered???
-	errchan := make(chan string, 10) // should be buffered???
-	out, err := commandExecute(ctx, outchan, errchan, cmd)
-	out = strings.TrimSpace(out)
+	wc.cancel = cancel // set it to console (for now)
+	wconn, err := commandExecute(ctx, cmd)
 	// handle command outputs
 	if err != nil {
-		if len(out) == 0 {
+		if wconn == nil {
 			wc.Error(err.Error())
-		} else if len(strings.Split(out, "\n")) == 1 {
-			wc.Error(out)
 		} else {
-			addPopupWidget("console-output", gFrameError, outchan, errchan, cancel)
+			e := addPopupWidget("console-output", gFrameError, wconn, cancel)
 			wc.cancel = nil // remove cancel from console, as it's passed to floaty widget
+			if e != nil {
+				// show Widget error (instead of command)
+				wc.Error(e.Error())
+				return
+			}
 			wc.Error(err.Error())
 			return
 		}
-	} else if len(out) > 0 && len(strings.Split(out, "\n")) == 1 {
-		wc.Print(out)
-	} else {
+	} else if wconn != nil {
 		wc.Clear()
-		addPopupWidget("console-output", gFrameOk, outchan, errchan, cancel)
+		e := addPopupWidget("console-output", gFrameOk, wconn, cancel)
 		wc.cancel = nil // remove cancel from console, as it's passed to floaty widget
+		if e != nil {
+			wc.Error(e.Error())
+		}
 	}
 }
 

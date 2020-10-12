@@ -26,20 +26,24 @@ var cmdAuto = map[string][]string{
 	"ls":     {"#list-dir"},
 }
 
-// command timeout... if running for longer, it will be killed (to not get stuck)
-var cmdTimeout = 3 * time.Second
-
-func commandExecute(ctx context.Context, outchan chan<- string, errchan chan<- string, command string) (string, error) {
+func commandExecute(ctx context.Context, command string) (*wRecvConn, error) {
 	cmdParts := strings.Split(strings.TrimSpace(command), " ")
+	// prepare result wRecvConn
+	result := &wRecvConn{
+		outchan: make(chan string, 10),
+		err:     make(chan error, 1),
+		signal:  make(chan struct{}),
+	}
+
 	switch cmdParts[0] {
 	case "exit":
 		gui.Update(func(g *gocui.Gui) error {
 			return gocui.ErrQuit
 		})
 	case "help":
-		return "help: command not implemented yet!", nil
+		return nil, errors.New("help: command not implemented yet")
 	case "error":
-		return "", errors.New("command failed")
+		return nil, errors.New("command failed")
 	case "addview":
 		config.Views[cmdParts[1]] = 10
 		viewMaxSize += 10
@@ -60,45 +64,54 @@ func commandExecute(ctx context.Context, outchan chan<- string, errchan chan<- s
 			c = exec.CommandContext(ctx, "code", "--help")
 		}
 		stdouterr, err := c.CombinedOutput()
-		outchan <- string(stdouterr)
-		close(outchan)
+		// maybe this into goroutine??? just to not block accidentally???
+		result.outchan <- string(stdouterr)
+		close(result.outchan)
 		if err != nil {
-			return "", err
+			return result, err
 		}
-		return "", nil
+		return result, nil
 	default:
 		// handle bash command execution
 		c := exec.CommandContext(ctx, "sh", "-c", command)
 		outPipe, err := c.StdoutPipe()
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		c.Stderr = c.Stdout // combine stdout and stderr
 		if err := c.Start(); err != nil {
-			return "", err
+			return nil, err
 		}
 
 		// setup output processing
 		go func() {
 			scan := bufio.NewScanner(outPipe)
 			for scan.Scan() {
-				outchan <- scan.Text()
+				select {
+				case <-result.signal:
+					return
+				case result.outchan <- scan.Text():
+				}
 			}
-			close(outchan)
+			close(result.outchan)
 		}()
 
 		// setup wait function
 		go func() {
 			if err := c.Wait(); err != nil {
-				errchan <- "error: " + err.Error()
+				select {
+				case <-result.signal:
+					return
+				case result.err <- err:
+				}
 			}
-			close(errchan)
+			close(result.err)
 		}()
 
-		return "", nil
+		return result, nil
 	}
 
-	return "", nil
+	return nil, nil
 }
 
 // simple function for testing widgets
