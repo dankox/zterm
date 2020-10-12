@@ -26,14 +26,10 @@ var cmdAuto = map[string][]string{
 	"ls":     {"#list-dir"},
 }
 
-func commandExecute(ctx context.Context, command string) (*wRecvConn, error) {
+func commandExecute(ctx context.Context, command string) (*RecvConn, error) {
 	cmdParts := strings.Split(strings.TrimSpace(command), " ")
-	// prepare result wRecvConn
-	result := &wRecvConn{
-		outchan: make(chan string, 10),
-		err:     make(chan error, 1),
-		signal:  make(chan struct{}),
-	}
+	// prepare result RecvConn
+	result := NewRecvConn()
 
 	switch cmdParts[0] {
 	case "exit":
@@ -83,9 +79,16 @@ func commandExecute(ctx context.Context, command string) (*wRecvConn, error) {
 			return nil, err
 		}
 
+		// setup moderator
+		go func() {
+			<-result.sigEnd
+			close(result.signal)
+		}()
+
 		// setup output processing
 		go func() {
 			defer close(result.outchan)
+
 			scan := bufio.NewScanner(outPipe)
 			for scan.Scan() {
 				select {
@@ -99,13 +102,16 @@ func commandExecute(ctx context.Context, command string) (*wRecvConn, error) {
 		// setup wait function
 		go func() {
 			defer close(result.err)
+
 			if err := c.Wait(); err != nil {
 				select {
 				case <-result.signal:
+					// moderator is already stopped (he is the only one closing this)
 					return
 				case result.err <- err:
 				}
 			}
+			result.Stop() // try to send sigEnd
 		}()
 
 		return result, nil
@@ -115,15 +121,58 @@ func commandExecute(ctx context.Context, command string) (*wRecvConn, error) {
 }
 
 // simple function for testing widgets
-func cmdSyslog(ctx context.Context) (string, error) {
+func cmdSyslog(ctx context.Context) (*RecvConn, error) {
+	result := NewRecvConn()
+
 	// handle bash command execution
 	if (time.Now().Second() % 30) < 10 {
-		return "", errors.New("WTF??? Eroooooooooooooooorrr... ")
+		return nil, errors.New("WTF??? Eroooooooooooooooorrr... ")
 	}
-	c := exec.CommandContext(ctx, "sh", "-c", "ls -l ~ && date")
-	stdouterr, err := c.CombinedOutput()
+
+	// c := exec.CommandContext(ctx, "sh", "-c", "ls -l ~ && date")
+	c := exec.CommandContext(ctx, "sh", "-c", "./test.sh")
+	outPipe, err := c.StdoutPipe()
 	if err != nil {
-		return string(stdouterr), err
+		return nil, err
 	}
-	return string(stdouterr), nil
+	c.Stderr = c.Stdout // combine stdout and stderr
+	if err := c.Start(); err != nil {
+		return nil, err
+	}
+
+	// setup moderator
+	go func() {
+		<-result.sigEnd
+		close(result.signal)
+	}()
+
+	// setup output processing
+	go func() {
+		defer close(result.outchan)
+
+		scan := bufio.NewScanner(outPipe)
+		for scan.Scan() {
+			select {
+			case <-result.signal:
+				return
+			case result.outchan <- scan.Text():
+			}
+		}
+	}()
+
+	// setup wait function
+	go func() {
+		defer close(result.err)
+
+		if err := c.Wait(); err != nil {
+			select {
+			case <-result.signal:
+				return
+			case result.err <- err:
+			}
+		}
+		result.Stop() // try to send sigEnd
+	}()
+
+	return result, nil
 }

@@ -18,7 +18,7 @@ type WidgetFloaty struct {
 	height   int
 	gview    *gocui.View
 	cancel   context.CancelFunc
-	conn     *wRecvConn
+	conn     *RecvConn
 	Enabled  bool
 	Editable bool
 }
@@ -179,7 +179,7 @@ func (wf *WidgetFloaty) IsHidden() bool {
 	return wf.Enabled == false
 }
 
-func addPopupWidget(name string, color gocui.Attribute, conn *wRecvConn, cncl context.CancelFunc) error {
+func addPopupWidget(name string, color gocui.Attribute, conn *RecvConn, cncl context.CancelFunc) error {
 	if color != 0 {
 		// set color for the frame
 		gui.SelFrameColor = color
@@ -236,8 +236,8 @@ func closeFloatyWidget(g *gocui.Gui, v *gocui.View) error {
 					wf.cancel() // cancel context which was running
 				}
 				if wf.conn != nil {
-					close(wf.conn.signal) // signal to stop to goroutines
-					wf.conn = nil         // delete from here
+					wf.conn.Stop() // try to send sigEnd
+					wf.conn = nil  // delete from here
 				}
 				wf.Enabled = false
 				wf.Layout(g)                                    // delete the view and set previous view as current

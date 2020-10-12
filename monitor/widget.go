@@ -21,7 +21,7 @@ type Widget struct {
 	stopFun chan bool
 	cancel  context.CancelFunc
 	refresh time.Duration
-	Fun     func(context.Context) (string, error)
+	Fun     func(context.Context) (*RecvConn, error)
 	Enabled bool
 }
 
@@ -138,20 +138,17 @@ func (w *Widget) StartFun() {
 	// setup goroutine
 	go func() {
 		// setup action function
-		action := func() {
-			output, err := w.Fun(ctx)
-			gui.Update(func(g *gocui.Gui) error {
-				if err != nil {
-					fmt.Fprintf(w.gview, "\nerror: %v\n", err.Error())
-					return nil
-				}
-				w.gview.Clear() // clear or add???
-				fmt.Fprint(w.gview, output)
-				return nil
-			})
+		action := func() *RecvConn {
+			if wconn, err := w.Fun(ctx); err != nil {
+				appendErrorToView(w.GetView(), err)
+			} else {
+				connectWidgetOuput(w, wconn)
+				return wconn
+			}
+			return nil
 		}
 		// run it for the first time
-		action()
+		conn := action()
 
 		for {
 			// To make it possible to kill the Fun, we need to listen to 2 different channels
@@ -163,12 +160,29 @@ func (w *Widget) StartFun() {
 				close(sleepTime)
 			}()
 			// check sleep or kill
-			select {
-			case <-w.stopFun:
-				return
-			case <-sleepTime:
-				// it's after sleep, run action
-				action()
+			if conn != nil {
+				// if connection provided, first wait for end signal (or stopFun)
+				select {
+				case <-conn.IsEnd():
+					// if finished, check sleeptime or stopfun
+					select {
+					case <-sleepTime:
+						conn = action()
+					case <-w.stopFun:
+						return
+					}
+				case <-w.stopFun:
+					conn.Stop()
+					return
+				}
+			} else {
+				select {
+				case <-w.stopFun:
+					return
+				case <-sleepTime:
+					// it's after sleep, action finished (no connection opened)
+					conn = action()
+				}
 			}
 		}
 	}()

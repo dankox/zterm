@@ -6,11 +6,47 @@ import (
 	"github.com/awesome-gocui/gocui"
 )
 
-// wRecvConn struct contains channels for output and error string and error
-type wRecvConn struct {
+// RecvConn struct contains channels for output and error string and error
+type RecvConn struct {
 	outchan chan string
 	err     chan error
 	signal  chan struct{}
+	sigEnd  chan bool
+}
+
+// NewRecvConn create new connection to receive output from command/function
+func NewRecvConn() *RecvConn {
+	return &RecvConn{
+		outchan: make(chan string, 10),
+		err:     make(chan error, 1),
+		signal:  make(chan struct{}),
+		sigEnd:  make(chan bool, 1),
+	}
+}
+
+// Stop command/function origin by sending ending signal.
+//
+// *it can be called multiple times, it doesn't block*
+func (conn *RecvConn) Stop() {
+	// try to send end signal
+	select {
+	case conn.sigEnd <- true:
+	default:
+	}
+}
+
+// IsEnd return ending signal. Check if it's closed to confirm if it is end.
+func (conn *RecvConn) IsEnd() <-chan struct{} {
+	return conn.signal
+}
+
+// WaitEnd blocks the processing until the connected command/function ends.
+func (conn *RecvConn) WaitEnd() {
+	<-conn.signal
+	return
+}
+
+func (conn *RecvConn) send() {
 }
 
 func changeView(g *gocui.Gui, v *gocui.View) error {
@@ -97,7 +133,7 @@ func appendErrorToView(v *gocui.View, err error) {
 }
 
 // Connect widget view to receive content from channels
-func connectWidgetOuput(w WidgetManager, conn *wRecvConn) {
+func connectWidgetOuput(w WidgetManager, conn *RecvConn) {
 	go func() {
 		textToView(w.GetView(), "") // clear the view content
 		for out := range conn.outchan {
@@ -107,6 +143,23 @@ func connectWidgetOuput(w WidgetManager, conn *wRecvConn) {
 		for err := range conn.err {
 			appendErrorToView(w.GetView(), err)
 		}
+		// TODO: this can cancel output when sigEnd is sent, but it fucks up the color??? because last is error??? TF?
+		// for {
+		// 	select {
+		// 	case out, ok := <-conn.outchan:
+		// 		if ok {
+		// 			appendTextToView(w.GetView(), out)
+		// 		}
+		// 	case err, ok := <-conn.err:
+		// 		if ok {
+		// 			appendErrorToView(w.GetView(), err)
+		// 		}
+		// 	case <-conn.IsEnd():
+		// 		return
+		// 	}
+		// }
+		// try to send sigEnd
+		conn.Stop()
 	}()
 }
 
