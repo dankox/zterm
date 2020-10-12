@@ -85,6 +85,7 @@ func commandExecute(ctx context.Context, command string) (*wRecvConn, error) {
 
 		// setup output processing
 		go func() {
+			defer close(result.outchan)
 			scan := bufio.NewScanner(outPipe)
 			for scan.Scan() {
 				select {
@@ -93,11 +94,11 @@ func commandExecute(ctx context.Context, command string) (*wRecvConn, error) {
 				case result.outchan <- scan.Text():
 				}
 			}
-			close(result.outchan)
 		}()
 
 		// setup wait function
 		go func() {
+			defer close(result.err)
 			if err := c.Wait(); err != nil {
 				select {
 				case <-result.signal:
@@ -105,7 +106,6 @@ func commandExecute(ctx context.Context, command string) (*wRecvConn, error) {
 				case result.err <- err:
 				}
 			}
-			close(result.err)
 		}()
 
 		return result, nil

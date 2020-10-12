@@ -64,6 +64,7 @@ func textToView(v *gocui.View, outstr string) {
 		gui.UpdateAsync(func(g *gocui.Gui) error {
 			v.Clear()
 			if len(outstr) > 0 {
+				v.Autoscroll = true
 				fmt.Fprintln(v, outstr)
 			}
 			return nil
@@ -75,6 +76,7 @@ func textToView(v *gocui.View, outstr string) {
 func appendTextToView(v *gocui.View, outstr string) {
 	if v != nil {
 		gui.UpdateAsync(func(g *gocui.Gui) error {
+			v.Autoscroll = true
 			fmt.Fprintln(v, outstr)
 			return nil
 		})
@@ -85,6 +87,7 @@ func appendTextToView(v *gocui.View, outstr string) {
 func appendErrorToView(v *gocui.View, err error) {
 	if v != nil {
 		gui.UpdateAsync(func(g *gocui.Gui) error {
+			v.Autoscroll = true
 			fmt.Fprintf(v, "error: %v\n", err.Error())
 			g.SelFrameColor = gFrameError
 			g.SelFgColor = gFrameError
