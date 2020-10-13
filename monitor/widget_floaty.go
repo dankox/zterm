@@ -51,6 +51,10 @@ func (wf *WidgetFloaty) Layout(g *gocui.Gui) error {
 	width := maxX - 1
 	if wf.y < 0 {
 		yPos = maxY + wf.y
+		// push from bottom if go out of display
+		if (yPos + wf.height) > maxY {
+			yPos = maxY - wf.height
+		}
 	} else if wf.y == 0 {
 		yPos = (maxY - wf.height) / 2
 		if yPos < 0 {
@@ -179,7 +183,7 @@ func (wf *WidgetFloaty) IsHidden() bool {
 	return wf.Enabled == false
 }
 
-func addPopupWidget(name string, color gocui.Attribute, conn *RecvConn, cncl context.CancelFunc) error {
+func addSimplePopupWidget(name string, color gocui.Attribute, x int, y int, width int, height int, body string) (*WidgetFloaty, error) {
 	if color != 0 {
 		// set color for the frame
 		gui.SelFrameColor = color
@@ -187,9 +191,13 @@ func addPopupWidget(name string, color gocui.Attribute, conn *RecvConn, cncl con
 	}
 	// Enabled, display...
 	maxX, maxY := gui.Size()
-	// compute correct position and width
-	width := maxX - 1 - 10
-	height := maxY - 5 - 10
+	// if width, height is zero, set to max
+	if width == 0 {
+		width = maxX - 1 // - 10
+	}
+	if height == 0 {
+		height = maxY // - 5 - 10
+	}
 
 	var widget *WidgetFloaty
 	// check if exists
@@ -199,7 +207,7 @@ func addPopupWidget(name string, color gocui.Attribute, conn *RecvConn, cncl con
 				widget = wf
 				break
 			} else {
-				return errors.New("Widget already exists, but it's not a popup widget")
+				return nil, errors.New("Widget already exists, but it's not a popup widget")
 			}
 		}
 	}
@@ -207,25 +215,43 @@ func addPopupWidget(name string, color gocui.Attribute, conn *RecvConn, cncl con
 	// setup widget
 	if widget == nil {
 		// if it didn't exist, create one
-		widget = NewWidgetFloaty(name, 0, 0, width, height, "")
+		widget = NewWidgetFloaty(name, x, y, width, height, body)
 		widgets = append(widgets, widget)
 	} else {
-		// otherwise just update size and position
-		widget.body = ""
+		// otherwise just update size, position and content
 		widget.width = width
 		widget.height = height
-		widget.x = 0
-		widget.y = 0
+		widget.x = x
+		widget.y = y
+		// this shouldn't be nil, as it already exists
+		if widget.gview != nil {
+			widget.gview.Clear()
+			fmt.Fprint(widget.gview, body)
+		}
+	}
+	widget.Enabled = true
+	widget.Keybinds(gui)
+	err := widget.Layout(gui)
+	return widget, err
+}
+
+func addAsyncPopupWidget(name string, color gocui.Attribute, conn *RecvConn, cncl context.CancelFunc) (*WidgetFloaty, error) {
+	// compute correct position and width
+	maxX, maxY := gui.Size()
+	width := maxX - 1 - 10
+	height := maxY - 5 - 10
+	// add popup to the center of screen
+	widget, err := addSimplePopupWidget(name, color, 0, 0, width, height, "")
+	if err != nil {
+		return nil, err
 	}
 	widget.cancel = cncl
-	widget.Enabled = true
 	widget.conn = conn
-	widget.Keybinds(gui)
 	// run layouts to sort the order (console on top)
 	getConsoleWidget().Layout(gui)
-	err := widget.Layout(gui)
+	err = widget.Layout(gui)
 	connectWidgetOuput(widget, conn)
-	return err
+	return widget, err
 }
 
 func closeFloatyWidget(g *gocui.Gui, v *gocui.View) error {

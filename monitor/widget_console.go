@@ -165,23 +165,22 @@ func (wc *WidgetConsole) ExecCmd(cmd string) {
 		if wconn == nil {
 			wc.Error(err.Error())
 		} else {
-			e := addPopupWidget("console-output", gFrameError, wconn, cancel)
-			wc.cancel = nil // remove cancel from console, as it's passed to floaty widget
-			if e != nil {
+			if _, e := addAsyncPopupWidget("console-output", gFrameError, wconn, cancel); e != nil {
 				// show Widget error (instead of command)
 				wc.Error(e.Error())
 				return
 			}
+			wc.cancel = nil // remove cancel from console, as it's passed to floaty widget
 			wc.Error(err.Error())
 			return
 		}
 	} else if wconn != nil {
 		wc.Clear()
-		e := addPopupWidget("console-output", gFrameOk, wconn, cancel)
-		wc.cancel = nil // remove cancel from console, as it's passed to floaty widget
-		if e != nil {
+		if _, e := addAsyncPopupWidget("console-output", gFrameOk, wconn, cancel); e != nil {
 			wc.Error(e.Error())
+			return
 		}
+		wc.cancel = nil // remove cancel from console, as it's passed to floaty widget
 	}
 }
 

@@ -119,7 +119,7 @@ func appendTextToView(v *gocui.View, outstr string) {
 	}
 }
 
-// Append text to the View. This will preserve previously added content
+// Append error to the View. This will preserve previously added content and will change color of the widget
 func appendErrorToView(v *gocui.View, err error) {
 	if v != nil {
 		gui.UpdateAsync(func(g *gocui.Gui) error {
@@ -132,8 +132,22 @@ func appendErrorToView(v *gocui.View, err error) {
 	}
 }
 
+// Append highlighter error message to the View. This will preserve previously added content
+func appendErrorMsgToView(v *gocui.View, err error) {
+	if v != nil {
+		gui.UpdateAsync(func(g *gocui.Gui) error {
+			v.Autoscroll = true
+			fmt.Fprintf(v, "\x1b[31;1merror: \x1b[0m%v\n", err.Error())
+			return nil
+		})
+	}
+}
+
 // Connect widget view to receive content from channels
 func connectWidgetOuput(w WidgetManager, conn *RecvConn) {
+	if conn == nil {
+		return
+	}
 	go func() {
 		textToView(w.GetView(), "") // clear the view content
 		for out := range conn.outchan {

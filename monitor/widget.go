@@ -16,7 +16,8 @@ type Widget struct {
 	pos     int
 	height  int
 	width   int
-	x, y    int // for floaty widgets
+	x0, y0  int // for floaty widgets
+	x1, y1  int // for floaty widgets
 	gview   *gocui.View
 	stopFun chan bool
 	cancel  context.CancelFunc
@@ -69,6 +70,11 @@ func (w *Widget) Layout(g *gocui.Gui) error {
 		yHeight = maxY - yPos - 1
 	}
 
+	// save for floaty ;)
+	w.x0 = 0
+	w.y0 = yPos
+	w.x1 = maxX - 1
+	w.y1 = yPos + yHeight
 	// set view position and dimension
 	v, err := g.SetView(w.name, 0, yPos, maxX-1, yPos+yHeight, 0)
 	if err != nil {
@@ -140,7 +146,7 @@ func (w *Widget) StartFun() {
 		// setup action function
 		action := func() *RecvConn {
 			if wconn, err := w.Fun(ctx); err != nil {
-				appendErrorToView(w.GetView(), err)
+				appendErrorMsgToView(w.GetView(), err)
 			} else {
 				connectWidgetOuput(w, wconn)
 				return wconn
@@ -190,6 +196,9 @@ func (w *Widget) StartFun() {
 
 // StopFun stops function running to update widget
 func (w *Widget) StopFun() {
+	if w.Fun == nil {
+		return
+	}
 	select {
 	case w.stopFun <- true:
 	default:
@@ -213,6 +222,22 @@ func changeRefresh(g *gocui.Gui, v *gocui.View) error {
 			w.refresh = 2 * time.Second
 		}
 		w.StartFun()
+		// add notification pop-up
+		if wf, err := addSimplePopupWidget("refresh-popup", gocui.ColorYellow, w.x0+1, w.y1-4, w.x1-2, 3,
+			fmt.Sprintf("refresh interval changed to %v", w.refresh)); err == nil {
+			// with CtrlR keybind to refresh THIS view (widget, not widget-floaty)
+			g.DeleteKeybinding(wf.name, gocui.KeyCtrlR, gocui.ModNone) // don't care about errors (just to not duplicate it)
+			if err := g.SetKeybinding(wf.name, gocui.KeyCtrlR, gocui.ModNone,
+				func(g *gocui.Gui, v *gocui.View) error {
+					nv, err := g.View(w.GetName())
+					if err != nil {
+						return err
+					}
+					return changeRefresh(g, nv)
+				}); err != nil {
+				log.Panicln(err)
+			}
+		}
 	}
 	return nil
 }
