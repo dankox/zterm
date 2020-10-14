@@ -21,6 +21,7 @@ type Widget struct {
 	gview   *gocui.View
 	stopFun chan bool
 	cancel  context.CancelFunc
+	ctx     context.Context
 	refresh time.Duration
 	Fun     func(context.Context) (*RecvConn, error)
 	Enabled bool
@@ -131,6 +132,33 @@ func (w *Widget) IsHidden() bool {
 	return w.Enabled == false
 }
 
+// WithContext create a context for Widget to handle situation when widget is closed
+func (w *Widget) WithContext(ctx context.Context) context.Context {
+	// cancel previous context if it was set
+	w.CancelCtx()
+	// create new context with cancel function
+	w.ctx, w.cancel = context.WithCancel(ctx)
+	return w.ctx
+}
+
+// CancelCtx cancel context
+func (w *Widget) CancelCtx() {
+	if w.cancel != nil {
+		w.cancel()
+		// nil for garbage collector
+		w.cancel = nil
+		w.ctx = nil
+	}
+}
+
+// DoneCtx returns channel that's closed when work is done or context is canceled
+func (w *Widget) DoneCtx() <-chan struct{} {
+	if w.ctx != nil {
+		return w.ctx.Done()
+	}
+	return nil
+}
+
 // StartFun starts a function for the view to update it's content.
 // Function has to return string which is used for update
 func (w *Widget) StartFun() {
@@ -237,6 +265,23 @@ func changeRefresh(g *gocui.Gui, v *gocui.View) error {
 				}); err != nil {
 				log.Panicln(err)
 			}
+			// with KeyTab keybind to change to NEXT view directly (widget, not widget-floaty)
+			g.DeleteKeybinding(wf.name, gocui.KeyTab, gocui.ModNone) // don't care about errors (just to not duplicate it)
+			if err := g.SetKeybinding(wf.name, gocui.KeyTab, gocui.ModNone,
+				func(g *gocui.Gui, v *gocui.View) error {
+					nv, err := g.View(w.GetName())
+					if err != nil {
+						return err
+					}
+					// close this floaty
+					closeFloatyWidget(g, v)
+					// change ;)
+					changeView(g, nv)
+					return nil
+				}); err != nil {
+				log.Panicln(err)
+			}
+
 		}
 	}
 	return nil

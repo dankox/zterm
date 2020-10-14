@@ -1,6 +1,7 @@
 package monitor
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"sort"
@@ -29,6 +30,9 @@ type WidgetManager interface {
 	GetName() string
 	GetView() *gocui.View
 	IsHidden() bool
+	WithContext(context.Context) context.Context
+	CancelCtx()
+	DoneCtx() <-chan struct{}
 }
 
 var (

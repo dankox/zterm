@@ -18,6 +18,7 @@ type WidgetFloaty struct {
 	height   int
 	gview    *gocui.View
 	cancel   context.CancelFunc
+	ctx      context.Context
 	conn     *RecvConn
 	Enabled  bool
 	Editable bool
@@ -183,6 +184,33 @@ func (wf *WidgetFloaty) IsHidden() bool {
 	return wf.Enabled == false
 }
 
+// WithContext create a context for WidgetFloaty to handle situation when widget is closed
+func (wf *WidgetFloaty) WithContext(ctx context.Context) context.Context {
+	// cancel previous context if it was set
+	wf.CancelCtx()
+	// create new context with cancel function
+	wf.ctx, wf.cancel = context.WithCancel(ctx)
+	return wf.ctx
+}
+
+// CancelCtx cancel context
+func (wf *WidgetFloaty) CancelCtx() {
+	if wf.cancel != nil {
+		wf.cancel()
+		// nil for garbage collector
+		wf.cancel = nil
+		wf.ctx = nil
+	}
+}
+
+// DoneCtx returns channel that's closed when work is done or context is canceled
+func (wf *WidgetFloaty) DoneCtx() <-chan struct{} {
+	if wf.ctx != nil {
+		return wf.ctx.Done()
+	}
+	return nil
+}
+
 func addSimplePopupWidget(name string, color gocui.Attribute, x int, y int, width int, height int, body string) (*WidgetFloaty, error) {
 	if color != 0 {
 		// set color for the frame
@@ -197,6 +225,8 @@ func addSimplePopupWidget(name string, color gocui.Attribute, x int, y int, widt
 	}
 	if height == 0 {
 		height = maxY // - 5 - 10
+	} else if height < 0 {
+		height = maxY - 5 - 10
 	}
 
 	var widget *WidgetFloaty
@@ -258,16 +288,10 @@ func closeFloatyWidget(g *gocui.Gui, v *gocui.View) error {
 	for i, w := range widgets {
 		if w.GetName() == v.Name() {
 			if wf, ok := w.(*WidgetFloaty); ok {
-				if wf.cancel != nil {
-					wf.cancel() // cancel context which was running
-				}
-				if wf.conn != nil {
-					wf.conn.Stop() // try to send sigEnd
-					wf.conn = nil  // delete from here
-				}
-				wf.Enabled = false
-				wf.Layout(g)                                    // delete the view and set previous view as current
-				widgets = append(widgets[:i], widgets[i+1:]...) // remove from widgets
+				wf.CancelCtx()     // cancel context which was running
+				wf.Enabled = false // disable widget and delete the view (set previous view as current)
+				wf.Layout(g)
+				widgets = append(widgets[:i], widgets[i+1:]...) // remove from widgets list
 				if getConsoleWidget().Enabled {
 					g.SetCurrentView(cmdPrompt)
 				}

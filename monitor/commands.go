@@ -26,10 +26,8 @@ var cmdAuto = map[string][]string{
 	"ls":     {"#list-dir"},
 }
 
-func commandExecute(ctx context.Context, command string) (*RecvConn, error) {
+func commandExecute(wgm WidgetManager, command string) error {
 	cmdParts := strings.Split(strings.TrimSpace(command), " ")
-	// prepare result RecvConn
-	result := NewRecvConn()
 
 	switch cmdParts[0] {
 	case "exit":
@@ -37,9 +35,9 @@ func commandExecute(ctx context.Context, command string) (*RecvConn, error) {
 			return gocui.ErrQuit
 		})
 	case "help":
-		return nil, errors.New("help: command not implemented yet")
+		return errors.New("help: command not implemented yet")
 	case "error":
-		return nil, errors.New("command failed")
+		return errors.New("command failed")
 	case "addview":
 		config.Views[cmdParts[1]] = 10
 		viewMaxSize += 10
@@ -53,71 +51,16 @@ func commandExecute(ctx context.Context, command string) (*RecvConn, error) {
 		getConsoleWidget().Layout(gui)
 	case "code":
 		// handle vscode command execution
-		var c *exec.Cmd
 		if len(cmdParts) > 1 {
-			c = exec.CommandContext(ctx, "code", cmdParts[1])
-		} else {
-			c = exec.CommandContext(ctx, "code", "--help")
+			return cmdShell(wgm, command)
 		}
-		stdouterr, err := c.CombinedOutput()
-		// maybe this into goroutine??? just to not block accidentally???
-		result.outchan <- string(stdouterr)
-		close(result.outchan)
-		if err != nil {
-			return result, err
-		}
-		return result, nil
+		return cmdShell(wgm, "code --help")
 	default:
 		// handle bash command execution
-		c := exec.CommandContext(ctx, "sh", "-c", command)
-		outPipe, err := c.StdoutPipe()
-		if err != nil {
-			return nil, err
-		}
-		c.Stderr = c.Stdout // combine stdout and stderr
-		if err := c.Start(); err != nil {
-			return nil, err
-		}
-
-		// setup moderator
-		go func() {
-			<-result.sigEnd
-			close(result.signal)
-		}()
-
-		// setup output processing
-		go func() {
-			defer close(result.outchan)
-
-			scan := bufio.NewScanner(outPipe)
-			for scan.Scan() {
-				select {
-				case <-result.signal:
-					return
-				case result.outchan <- scan.Text():
-				}
-			}
-		}()
-
-		// setup wait function
-		go func() {
-			defer close(result.err)
-
-			if err := c.Wait(); err != nil {
-				select {
-				case <-result.signal:
-					// moderator is already stopped (he is the only one closing this)
-					return
-				case result.err <- err:
-				}
-			}
-			result.Stop() // try to send sigEnd
-		}()
-
-		return result, nil
+		return cmdShell(wgm, command)
 	}
 
-	return nil, nil
+	return nil
 }
 
 // simple function for testing widgets
