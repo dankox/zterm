@@ -1,7 +1,6 @@
 package monitor
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"time"
@@ -20,10 +19,9 @@ type Widget struct {
 	x1, y1  int // for floaty widgets
 	gview   *gocui.View
 	stopFun chan bool
-	cancel  context.CancelFunc
-	ctx     context.Context
+	conn    *RecvConn
 	refresh time.Duration
-	Fun     func(context.Context) (*RecvConn, error)
+	Fun     func(WidgetManager) error
 	Enabled bool
 }
 
@@ -108,8 +106,8 @@ func (w *Widget) Keybinds(g *gocui.Gui) {
 	}
 	// cancel key
 	if err := g.SetKeybinding(w.name, gocui.KeyCtrlZ, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		if v.Name() == w.name && w.cancel != nil {
-			w.cancel()
+		if v.Name() == w.name {
+			w.Disconnect()
 		}
 		return nil
 	}); err != nil {
@@ -132,31 +130,19 @@ func (w *Widget) IsHidden() bool {
 	return w.Enabled == false
 }
 
-// WithContext create a context for Widget to handle situation when widget is closed
-func (w *Widget) WithContext(ctx context.Context) context.Context {
-	// cancel previous context if it was set
-	w.CancelCtx()
-	// create new context with cancel function
-	w.ctx, w.cancel = context.WithCancel(ctx)
-	return w.ctx
+// Connect content producing channel
+func (w *Widget) Connect(conn *RecvConn) {
+	if w.conn != nil {
+		w.conn.Stop()
+	}
+	w.conn = conn
 }
 
-// CancelCtx cancel context
-func (w *Widget) CancelCtx() {
-	if w.cancel != nil {
-		w.cancel()
-		// nil for garbage collector
-		w.cancel = nil
-		w.ctx = nil
+// Disconnect content producing channel
+func (w *Widget) Disconnect() {
+	if w.conn != nil {
+		w.conn.Stop()
 	}
-}
-
-// DoneCtx returns channel that's closed when work is done or context is canceled
-func (w *Widget) DoneCtx() <-chan struct{} {
-	if w.ctx != nil {
-		return w.ctx.Done()
-	}
-	return nil
 }
 
 // StartFun starts a function for the view to update it's content.
@@ -166,23 +152,19 @@ func (w *Widget) StartFun() {
 	if w.Fun == nil {
 		return
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	w.cancel = cancel // setup cancel
 
 	// setup goroutine
 	go func() {
 		// setup action function
-		action := func() *RecvConn {
-			if wconn, err := w.Fun(ctx); err != nil {
+		action := func() error {
+			if err := w.Fun(w); err != nil {
 				appendErrorMsgToView(w.GetView(), err)
-			} else {
-				connectWidgetOuput(w, wconn)
-				return wconn
+				return err
 			}
 			return nil
 		}
 		// run it for the first time
-		conn := action()
+		acterr := action()
 
 		for {
 			// To make it possible to kill the Fun, we need to listen to 2 different channels
@@ -193,31 +175,22 @@ func (w *Widget) StartFun() {
 				<-time.After(w.refresh)
 				close(sleepTime)
 			}()
-			// check sleep or kill
-			if conn != nil {
-				// if connection provided, first wait for end signal (or stopFun)
-				select {
-				case <-conn.IsEnd():
-					// if finished, check sleeptime or stopfun
-					select {
-					case <-sleepTime:
-						conn = action()
-					case <-w.stopFun:
-						return
-					}
-				case <-w.stopFun:
-					conn.Stop()
-					return
-				}
-			} else {
+			if acterr == nil {
 				select {
 				case <-w.stopFun:
+					w.Disconnect() // disconnect content channel
+					// w.conn.Stop()
 					return
-				case <-sleepTime:
-					// it's after sleep, action finished (no connection opened)
-					conn = action()
+				case <-w.conn.IsEnd():
 				}
 			}
+			select {
+			case <-w.stopFun:
+				w.Disconnect()
+				return
+			case <-sleepTime:
+			}
+			acterr = action()
 		}
 	}()
 }

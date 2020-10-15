@@ -1,10 +1,7 @@
 package monitor
 
 import (
-	"bufio"
-	"context"
 	"errors"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -64,58 +61,12 @@ func commandExecute(wgm WidgetManager, command string) error {
 }
 
 // simple function for testing widgets
-func cmdSyslog(ctx context.Context) (*RecvConn, error) {
-	result := NewRecvConn()
+func cmdSyslogShell(widget WidgetManager) error {
+	// fake error
+	if (time.Now().Second() % 30) < 10 {
+		return errors.New("WTF??? Eroooooooooooooooorrr... ")
+	}
 
 	// handle bash command execution
-	if (time.Now().Second() % 30) < 10 {
-		return nil, errors.New("WTF??? Eroooooooooooooooorrr... ")
-	}
-
-	// c := exec.CommandContext(ctx, "sh", "-c", "ls -l ~ && date")
-	c := exec.CommandContext(ctx, "sh", "-c", "./test.sh")
-	outPipe, err := c.StdoutPipe()
-	if err != nil {
-		return nil, err
-	}
-	c.Stderr = c.Stdout // combine stdout and stderr
-	if err := c.Start(); err != nil {
-		return nil, err
-	}
-
-	// setup moderator
-	go func() {
-		<-result.sigEnd
-		close(result.signal)
-	}()
-
-	// setup output processing
-	go func() {
-		defer close(result.outchan)
-
-		scan := bufio.NewScanner(outPipe)
-		for scan.Scan() {
-			select {
-			case <-result.signal:
-				return
-			case result.outchan <- scan.Text():
-			}
-		}
-	}()
-
-	// setup wait function
-	go func() {
-		defer close(result.err)
-
-		if err := c.Wait(); err != nil {
-			select {
-			case <-result.signal:
-				return
-			case result.err <- err:
-			}
-		}
-		result.Stop() // try to send sigEnd
-	}()
-
-	return result, nil
+	return cmdShell(widget, "./test.sh")
 }

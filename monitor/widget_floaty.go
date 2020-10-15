@@ -1,7 +1,6 @@
 package monitor
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -17,8 +16,6 @@ type WidgetFloaty struct {
 	width    int
 	height   int
 	gview    *gocui.View
-	cancel   context.CancelFunc
-	ctx      context.Context
 	conn     *RecvConn
 	Enabled  bool
 	Editable bool
@@ -184,31 +181,19 @@ func (wf *WidgetFloaty) IsHidden() bool {
 	return wf.Enabled == false
 }
 
-// WithContext create a context for WidgetFloaty to handle situation when widget is closed
-func (wf *WidgetFloaty) WithContext(ctx context.Context) context.Context {
-	// cancel previous context if it was set
-	wf.CancelCtx()
-	// create new context with cancel function
-	wf.ctx, wf.cancel = context.WithCancel(ctx)
-	return wf.ctx
+// Connect content producing channel
+func (wf *WidgetFloaty) Connect(conn *RecvConn) {
+	if wf.conn != nil {
+		wf.conn.Stop()
+	}
+	wf.conn = conn
 }
 
-// CancelCtx cancel context
-func (wf *WidgetFloaty) CancelCtx() {
-	if wf.cancel != nil {
-		wf.cancel()
-		// nil for garbage collector
-		wf.cancel = nil
-		wf.ctx = nil
+// Disconnect content producing channel
+func (wf *WidgetFloaty) Disconnect() {
+	if wf.conn != nil {
+		wf.conn.Stop()
 	}
-}
-
-// DoneCtx returns channel that's closed when work is done or context is canceled
-func (wf *WidgetFloaty) DoneCtx() <-chan struct{} {
-	if wf.ctx != nil {
-		return wf.ctx.Done()
-	}
-	return nil
 }
 
 func addSimplePopupWidget(name string, color gocui.Attribute, x int, y int, width int, height int, body string) (*WidgetFloaty, error) {
@@ -265,7 +250,7 @@ func addSimplePopupWidget(name string, color gocui.Attribute, x int, y int, widt
 	return widget, err
 }
 
-func addAsyncPopupWidget(name string, color gocui.Attribute, conn *RecvConn, cncl context.CancelFunc) (*WidgetFloaty, error) {
+func addAsyncPopupWidget(name string, color gocui.Attribute, conn *RecvConn) (*WidgetFloaty, error) {
 	// compute correct position and width
 	maxX, maxY := gui.Size()
 	width := maxX - 1 - 10
@@ -275,7 +260,6 @@ func addAsyncPopupWidget(name string, color gocui.Attribute, conn *RecvConn, cnc
 	if err != nil {
 		return nil, err
 	}
-	widget.cancel = cncl
 	widget.conn = conn
 	// run layouts to sort the order (console on top)
 	getConsoleWidget().Layout(gui)
@@ -288,7 +272,7 @@ func closeFloatyWidget(g *gocui.Gui, v *gocui.View) error {
 	for i, w := range widgets {
 		if w.GetName() == v.Name() {
 			if wf, ok := w.(*WidgetFloaty); ok {
-				wf.CancelCtx()     // cancel context which was running
+				wf.Disconnect()    // disconnect content channel
 				wf.Enabled = false // disable widget and delete the view (set previous view as current)
 				wf.Layout(g)
 				widgets = append(widgets[:i], widgets[i+1:]...) // remove from widgets list

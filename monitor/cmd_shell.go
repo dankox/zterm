@@ -9,18 +9,18 @@ import (
 // Execute shell command and process output in Widget
 func cmdShell(widget WidgetManager, command string) error {
 	// setup widget context
-	ctx := widget.WithContext(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 
 	// handle bash command execution
 	c := exec.CommandContext(ctx, "sh", "-c", command)
 	outPipe, err := c.StdoutPipe()
 	if err != nil {
-		widget.CancelCtx() // stop context
+		cancel()
 		return err
 	}
 	c.Stderr = c.Stdout // combine stdout and stderr
 	if err := c.Start(); err != nil {
-		widget.CancelCtx() // stop context
+		cancel()
 		return err
 	}
 
@@ -28,30 +28,29 @@ func cmdShell(widget WidgetManager, command string) error {
 	comch := NewRecvConn()
 
 	// setup moderator
-	go func() {
-		<-comch.sigEnd
-		close(comch.signal)
-	}()
+	// go func() {
+	// 	<-comch.sigEnd
+	// 	close(comch.signal)
+	// 	widget.CancelCtx() // ??
+	// }()
 
 	// setup output processing
 	go func() {
+		defer cancel()
+		defer close(comch.err)
 		defer close(comch.outchan)
 
 		scan := bufio.NewScanner(outPipe)
+		// read output
 		for scan.Scan() {
 			select {
 			case <-comch.signal:
+				// killing signal
 				return
 			case comch.outchan <- scan.Text():
 			}
 		}
-	}()
-
-	// setup wait function
-	go func() {
-		defer widget.CancelCtx()
-		defer close(comch.err)
-
+		// wait end
 		if err := c.Wait(); err != nil {
 			select {
 			case <-comch.signal:
@@ -60,7 +59,6 @@ func cmdShell(widget WidgetManager, command string) error {
 			case comch.err <- err:
 			}
 		}
-		comch.Stop() // try to send sigEnd
 	}()
 
 	connectWidgetOuput(widget, comch)

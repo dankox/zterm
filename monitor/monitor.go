@@ -1,7 +1,6 @@
 package monitor
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"sort"
@@ -30,9 +29,8 @@ type WidgetManager interface {
 	GetName() string
 	GetView() *gocui.View
 	IsHidden() bool
-	WithContext(context.Context) context.Context
-	CancelCtx()
-	DoneCtx() <-chan struct{}
+	Connect(conn *RecvConn)
+	Disconnect()
 }
 
 var (
@@ -115,7 +113,7 @@ func setupManagers() []WidgetManager {
 	for i, v := range viewOrder {
 		widget := NewWidget(v, i, config.Views[v], fmt.Sprintf("Loading %v...", v))
 		if widget.GetName() == "2-syslog" {
-			widget.Fun = cmdSyslog
+			widget.Fun = cmdSyslogShell
 			widget.StartFun()
 		}
 		managers = append(managers, widget)

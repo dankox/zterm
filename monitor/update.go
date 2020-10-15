@@ -28,10 +28,10 @@ func NewRecvConn() *RecvConn {
 //
 // *it can be called multiple times, it doesn't block*
 func (conn *RecvConn) Stop() {
-	// try to send end signal
 	select {
-	case conn.sigEnd <- true:
+	case <-conn.signal:
 	default:
+		close(conn.signal)
 	}
 }
 
@@ -148,6 +148,10 @@ func connectWidgetOuput(w WidgetManager, conn *RecvConn) {
 	if conn == nil {
 		return
 	}
+
+	// connect widget for communication
+	w.Connect(conn)
+
 	go func() {
 		textToView(w.GetView(), "") // clear the view content
 		for out := range conn.outchan {
@@ -157,22 +161,6 @@ func connectWidgetOuput(w WidgetManager, conn *RecvConn) {
 		for err := range conn.err {
 			appendErrorToView(w.GetView(), err)
 		}
-		// TODO: this can cancel output when sigEnd is sent, but it fucks up the color??? because last is error??? TF?
-		// for {
-		// 	select {
-		// 	case out, ok := <-conn.outchan:
-		// 		if ok {
-		// 			appendTextToView(w.GetView(), out)
-		// 		}
-		// 	case err, ok := <-conn.err:
-		// 		if ok {
-		// 			appendErrorToView(w.GetView(), err)
-		// 		}
-		// 	case <-conn.IsEnd():
-		// 		return
-		// 	}
-		// }
-		// try to send sigEnd
 		conn.Stop()
 	}()
 }

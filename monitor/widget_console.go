@@ -17,6 +17,7 @@ type WidgetConsole struct {
 	histIndex  int
 	ctx        context.Context
 	cancel     context.CancelFunc
+	conn       *RecvConn
 	Enabled    bool
 }
 
@@ -152,31 +153,19 @@ func (wc *WidgetConsole) IsHidden() bool {
 	return wc.Enabled == false
 }
 
-// WithContext create a context for WidgetConsole to handle situation when widget is closed
-func (wc *WidgetConsole) WithContext(ctx context.Context) context.Context {
-	// cancel previous context if it was set
-	wc.CancelCtx()
-	// create new context with cancel function
-	wc.ctx, wc.cancel = context.WithCancel(ctx)
-	return wc.ctx
+// Connect content producing channel
+func (wc *WidgetConsole) Connect(conn *RecvConn) {
+	if wc.conn != nil {
+		wc.conn.Stop()
+	}
+	wc.conn = conn
 }
 
-// CancelCtx cancel context
-func (wc *WidgetConsole) CancelCtx() {
-	if wc.cancel != nil {
-		wc.cancel()
-		// nil for garbage collector
-		wc.cancel = nil
-		wc.ctx = nil
+// Disconnect content producing channel
+func (wc *WidgetConsole) Disconnect() {
+	if wc.conn != nil {
+		wc.conn.Stop()
 	}
-}
-
-// DoneCtx returns channel that's closed when work is done or context is canceled
-func (wc *WidgetConsole) DoneCtx() <-chan struct{} {
-	if wc.ctx != nil {
-		return wc.ctx.Done()
-	}
-	return nil
 }
 
 // ExecCmd execute command in the Console Widget
