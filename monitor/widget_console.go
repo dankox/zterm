@@ -179,6 +179,7 @@ func (wc *WidgetConsole) ExecCmd(cmd string) {
 	} else {
 		if err := commandExecute(wf, cmd); err != nil {
 			wc.Error(err.Error())
+			closeFloatyWidget(gui, wf.GetView())
 		}
 	}
 }

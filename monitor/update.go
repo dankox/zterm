@@ -2,6 +2,7 @@ package monitor
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/awesome-gocui/gocui"
 )
@@ -99,9 +100,10 @@ func textToView(v *gocui.View, outstr string) {
 	if v != nil {
 		gui.UpdateAsync(func(g *gocui.Gui) error {
 			v.Clear()
+			v.SetOrigin(0, 0)
 			if len(outstr) > 0 {
 				v.Autoscroll = true
-				fmt.Fprintln(v, outstr)
+				fmt.Fprint(v, outstr)
 			}
 			return nil
 		})
@@ -113,7 +115,7 @@ func appendTextToView(v *gocui.View, outstr string) {
 	if v != nil {
 		gui.UpdateAsync(func(g *gocui.Gui) error {
 			v.Autoscroll = true
-			fmt.Fprintln(v, outstr)
+			fmt.Fprint(v, outstr)
 			return nil
 		})
 	}
@@ -153,13 +155,42 @@ func connectWidgetOuput(w WidgetManager, conn *RecvConn) {
 	w.Connect(conn)
 
 	go func() {
-		textToView(w.GetView(), "") // clear the view content
-		for out := range conn.outchan {
-			// if view is nil, it will just dump to nowhere (so it won't block origin goroutine)
-			appendTextToView(w.GetView(), out)
+		output := ""
+		first := true
+	renderloop:
+		for {
+			select {
+			case out, ok := <-conn.outchan:
+				output += out + "\n"
+				if !ok {
+					if len(output) > 0 {
+						if first {
+							textToView(w.GetView(), output)
+							first = false
+						} else {
+							appendTextToView(w.GetView(), output)
+						}
+					}
+					// don't need to clean output, just break out
+					break renderloop
+				}
+			case <-time.After(16 * time.Millisecond):
+				// display in FPS ~60hz
+				if len(output) > 0 {
+					if first {
+						textToView(w.GetView(), output)
+						first = false
+					} else {
+						appendTextToView(w.GetView(), output)
+					}
+					output = ""
+				}
+			}
+
 		}
+		// add to renderloop???
 		for err := range conn.err {
-			appendErrorToView(w.GetView(), err)
+			appendErrorMsgToView(w.GetView(), err)
 		}
 		conn.Stop()
 	}()

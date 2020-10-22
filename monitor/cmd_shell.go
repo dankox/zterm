@@ -3,7 +3,13 @@ package monitor
 import (
 	"bufio"
 	"context"
+	"errors"
+	"fmt"
+	"io"
+	"os"
 	"os/exec"
+
+	"golang.org/x/crypto/ssh"
 )
 
 // Execute shell command and process output in Widget
@@ -57,6 +63,105 @@ func cmdShell(widget WidgetManager, command string) error {
 				// moderator is already stopped (he is the only one closing this)
 				return
 			case comch.err <- err:
+			}
+		}
+	}()
+
+	connectWidgetOuput(widget, comch)
+
+	return nil
+}
+
+// Execute vim command and use full terminal
+func cmdVim(widget WidgetManager, file string) error {
+	// handle bash command execution
+	c := exec.Command("sh", "-c", "vim "+file)
+	c.Stderr = os.Stderr
+	c.Stdin = os.Stdin
+	c.Stdout = os.Stdout
+	if err := c.Run(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// func run(ctx context.Context) error {
+func cmdSSH(widget WidgetManager, cmd string) error {
+	if sshConn == nil {
+		return errors.New("SSH connection not created! Adjust your configuration")
+	}
+
+	session, err := sshConn.NewSession()
+	if err != nil {
+		return fmt.Errorf("cannot open new session: %v", err)
+	}
+
+	stdin, err := session.StdinPipe()
+	if err != nil {
+		return err
+	}
+
+	// start shell
+	if err := session.Shell(); err != nil {
+		return fmt.Errorf("session shell: %s", err)
+	}
+
+	pipeR, pipeW := io.Pipe()
+	session.Stdout = pipeW
+	session.Stderr = pipeW
+
+	// send command
+	if _, err = fmt.Fprintf(stdin, "%s\n", cmd); err != nil {
+		fmt.Println(err)
+		return err
+	}
+	stdin.Close() // just one command
+
+	// prepare communication channel RecvConn
+	comch := NewRecvConn()
+
+	// monitor for cancel and close session if done
+	go func() {
+		<-comch.signal
+		pipeW.Close()
+		session.Close()
+	}()
+
+	// read both stdout/stderr in from one reader
+	go func() {
+		defer close(comch.outchan)
+
+		scan := bufio.NewScanner(pipeR)
+		// read output
+		for scan.Scan() {
+			select {
+			case <-comch.signal:
+				// killing signal
+				return
+			case comch.outchan <- scan.Text():
+			}
+		}
+	}()
+
+	// wait for end
+	go func() {
+		defer close(comch.err)
+		defer session.Close()
+		defer pipeW.Close() // pipe might not be closed and scanner would wait, therefore close
+
+		// wait end
+		if err := session.Wait(); err != nil {
+			efmt := fmt.Errorf("ssh: %v", err.Error())
+			// convert to ssh error if possible
+			if e, ok := err.(*ssh.ExitError); ok && e != nil {
+				efmt = fmt.Errorf("ssh: %v", e.ExitStatus())
+			}
+			// return
+			select {
+			case <-comch.signal:
+				// skip passing error (it's already killed)
+			case comch.err <- efmt:
 			}
 		}
 	}()

@@ -2,11 +2,15 @@ package monitor
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
+	"os/user"
 	"sort"
+	"time"
 
 	"github.com/awesome-gocui/gocui"
 	"github.com/spf13/viper"
+	"golang.org/x/crypto/ssh"
 )
 
 // Server configuration
@@ -40,16 +44,22 @@ var (
 		map[string]int{},
 	}
 
+	// widget/view parameters
 	viewOrder   []string
 	viewMaxSize = 0
 	widgets     []WidgetManager
 	gui         *gocui.Gui
 
+	// TUI coloring
 	// gFrameHighlight = gocui.ColorYellow
 	gFrameHighlight = gocui.ColorDefault
 	gFrameOk        = gocui.ColorCyan
 	gFrameError     = gocui.ColorRed
 	gFrameColor     = gocui.ColorDefault
+
+	// ssh parameters
+	sshConfig *ssh.ClientConfig
+	sshConn   *ssh.Client
 )
 
 // Main function of monitor package
@@ -64,6 +74,23 @@ var (
 func Main() {
 	// load config file (or arguments)
 	viper.Unmarshal(&config)
+
+	// fmt.Println("starting ssh", config.Server.Host)
+	// setup ssh configuration
+	sshConfig = setupSSHConfig()
+	if sshConfig != nil {
+		// fmt.Printf("config ssh: %v", sshConfig)
+		hostport := fmt.Sprintf("%s:%d", config.Server.Host, 22)
+		// fmt.Printf("ssh host: %v", hostport)
+		conn, err := ssh.Dial("tcp", hostport, sshConfig)
+		if err != nil {
+			fmt.Printf("cannot connect %v: %v\n", hostport, err)
+		} else {
+			sshConn = conn
+			// fmt.Println("connected to ssh as", config.Server.User)
+			defer sshConn.Close()
+		}
+	}
 
 	// count 100% size of all the views
 	for k, v := range config.Views {
@@ -112,7 +139,10 @@ func setupManagers() []WidgetManager {
 	// add configured views
 	for i, v := range viewOrder {
 		widget := NewWidget(v, i, config.Views[v], fmt.Sprintf("Loading %v...", v))
-		if widget.GetName() == "2-syslog" {
+		if widget.GetName() == "1-joblog" {
+			widget.Fun = cmdTestShell
+			widget.StartFun()
+		} else if widget.GetName() == "2-syslog" {
 			widget.Fun = cmdSyslogShell
 			widget.StartFun()
 		}
@@ -185,4 +215,35 @@ func getWidget(name string) *Widget {
 		}
 	}
 	return nil
+}
+
+// setupSSHConfig loads a public key and setup ssh config for connection
+func setupSSHConfig() *ssh.ClientConfig {
+	usr, err := user.Current()
+	if err != nil {
+		return nil
+	}
+	keyfile := usr.HomeDir + "/.ssh/id_rsa"
+	fmt.Printf("read file %v\n", keyfile)
+
+	key, err := ioutil.ReadFile(keyfile)
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+	signer, err := ssh.ParsePrivateKey(key)
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+
+	authkey := ssh.PublicKeys(signer)
+	config := &ssh.ClientConfig{
+		User:            config.Server.User,
+		Auth:            []ssh.AuthMethod{authkey},
+		Timeout:         5 * time.Second,
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	}
+
+	return config
 }
