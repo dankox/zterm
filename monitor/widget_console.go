@@ -23,6 +23,7 @@ var (
 	cmdPrompt     = "console-prompt"
 	cmdPromptPS1  = "console-prompt-ps1"
 	consoleHeight = 3
+	promptPS1     = "\x1b[36;2m>>\x1b[0m "
 )
 
 // NewWidgetConsole creates a widget for GUI which doesn't contribute to the layout.
@@ -75,6 +76,9 @@ func (wc *WidgetConsole) Layout(g *gocui.Gui) error {
 		// wc.Clear()
 	}
 	wc.gview = v // set pointer to GUI View (only for view, not for input)
+	// hardcoded colors for frame and title
+	v.FrameColor = gFrameOk
+	v.TitleColor = gFrameOk
 
 	// set title
 	v.Title = fmt.Sprintf("< %v >", cmdView)
@@ -86,7 +90,7 @@ func (wc *WidgetConsole) Layout(g *gocui.Gui) error {
 		if !gocui.IsUnknownView(err) {
 			return fmt.Errorf("view %v: %v", cmdView, err)
 		}
-		fmt.Fprint(v, ">>")
+		fmt.Fprint(v, promptPS1)
 	}
 	v.Frame = false
 	g.SetViewOnTop(cmdPromptPS1)
@@ -166,10 +170,10 @@ func (wc *WidgetConsole) ExecCmd(cmd string) {
 	wc.cmdHistory = append(wc.cmdHistory, cmd)
 	wc.histIndex = len(wc.cmdHistory)
 	if err := commandExecute(wc, cmd); err != nil {
-		wc.Println(">> " + cmd)
+		wc.Println(promptPS1 + cmd)
 		wc.Error(err)
 	} else {
-		wc.Println(">> " + cmd)
+		wc.Println(promptPS1 + cmd)
 	}
 }
 

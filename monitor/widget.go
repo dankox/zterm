@@ -8,15 +8,17 @@ import (
 
 // Widget structure for GUI
 type Widget struct {
-	name    string
-	body    string
-	x0, y0  int // coordinates top-left
-	x1, y1  int // coordinates bottom-right
-	height  int
-	width   int
-	gview   *gocui.View
-	conn    *RecvConn
-	Enabled bool
+	name       string
+	body       string
+	x0, y0     int // coordinates top-left
+	x1, y1     int // coordinates bottom-right
+	height     int
+	width      int
+	gview      *gocui.View
+	conn       *RecvConn
+	FrameColor gocui.Attribute
+	TitleColor gocui.Attribute
+	Enabled    bool
 }
 
 // Widgeter cover Layout for GUI and some specifics for widgets

@@ -73,6 +73,8 @@ func (wf *WidgetFloaty) Layout(g *gocui.Gui) error {
 		v.SetOrigin(0, v.LinesHeight()-vy)
 	}
 	wf.gview = v // set pointer to GUI View
+	v.FrameColor = wf.FrameColor
+	v.TitleColor = wf.TitleColor
 
 	// get position & height
 	lh := v.LinesHeight()
@@ -85,7 +87,6 @@ func (wf *WidgetFloaty) Layout(g *gocui.Gui) error {
 
 	// set current view for keys and stuff...
 	g.SetCurrentView(wf.name)
-	g.Highlight = true // highlight the popup
 
 	return nil
 }
@@ -160,11 +161,6 @@ func (wf *WidgetFloaty) Keybinds(g *gocui.Gui) {
 }
 
 func addSimplePopupWidget(name string, color gocui.Attribute, x int, y int, width int, height int, body string) (*WidgetFloaty, error) {
-	if color != 0 {
-		// set color for the frame
-		gui.SelFrameColor = color
-		gui.SelFgColor = color
-	}
 	// Enabled, display...
 	maxX, maxY := gui.Size()
 	// if width, height is zero, set to max
@@ -210,24 +206,11 @@ func addSimplePopupWidget(name string, color gocui.Attribute, x int, y int, widt
 	widget.Enabled = true
 	widget.Keybinds(gui)
 	err := widget.Layout(gui)
-	return widget, err
-}
-
-func addAsyncPopupWidget(name string, color gocui.Attribute, conn *RecvConn) (*WidgetFloaty, error) {
-	// compute correct position and width
-	maxX, maxY := gui.Size()
-	width := maxX - 1 - 10
-	height := maxY - 5 - 10
-	// add popup to the center of screen
-	widget, err := addSimplePopupWidget(name, color, 0, 0, width, height, "")
-	if err != nil {
-		return nil, err
+	if color != 0 {
+		// set color for the frame
+		widget.FrameColor = color
+		widget.TitleColor = color
 	}
-	widget.conn = conn
-	// run layouts to sort the order (console on top)
-	getConsoleWidget().Layout(gui)
-	err = widget.Layout(gui)
-	connectWidgetOuput(widget, conn)
 	return widget, err
 }
 

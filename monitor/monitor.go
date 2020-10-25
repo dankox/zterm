@@ -94,14 +94,12 @@ func Main() {
 	}
 	defer g.Close()
 	gui = g // save pointer for use outside
+	// g.FrameColor = gocui.ColorGreen // green for mainframe like? :)
 
 	// prepare widgets
 	widgets = setupManagers()
 	// set layout manager function
 	g.SetManagerFunc(handleLayouts)
-	// prepare default highlight colors
-	g.SelFrameColor = gFrameHighlight
-	g.SelFgColor = gFrameHighlight
 
 	// set keybinds (after layout manager)
 	for _, w := range widgets {
