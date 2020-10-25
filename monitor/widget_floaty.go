@@ -10,14 +10,7 @@ import (
 
 // WidgetFloaty structure for GUI
 type WidgetFloaty struct {
-	name     string
-	body     string
-	x, y     int
-	width    int
-	height   int
-	gview    *gocui.View
-	conn     *RecvConn
-	Enabled  bool
+	Widget
 	Editable bool
 }
 
@@ -26,7 +19,7 @@ var pageScroll = 10
 // NewWidgetFloaty creates a widget for GUI which doesn't contribute to the layout.
 // This type of widget is displayed on top over the layout.
 func NewWidgetFloaty(name string, x, y int, width int, height int, body string) *WidgetFloaty {
-	return &WidgetFloaty{name: name, x: x, y: y, height: height, width: width, body: body}
+	return &WidgetFloaty{Widget: Widget{name: name, body: body, x0: x, y0: y, width: 0, height: height, Enabled: true}}
 }
 
 // Layout setup for floaty widget
@@ -44,16 +37,16 @@ func (wf *WidgetFloaty) Layout(g *gocui.Gui) error {
 	// Enabled, display...
 	maxX, maxY := g.Size()
 	// compute correct position and width
-	yPos := wf.y
-	xPos := wf.x
+	yPos := wf.y0
+	xPos := wf.x0
 	width := maxX - 1
-	if wf.y < 0 {
-		yPos = maxY + wf.y
+	if wf.y0 < 0 {
+		yPos = maxY + wf.y0
 		// push from bottom if go out of display
 		if (yPos + wf.height) > maxY {
 			yPos = maxY - wf.height
 		}
-	} else if wf.y == 0 {
+	} else if wf.y0 == 0 {
 		yPos = (maxY - wf.height) / 2
 		if yPos < 0 {
 			yPos = 0
@@ -62,7 +55,7 @@ func (wf *WidgetFloaty) Layout(g *gocui.Gui) error {
 	if wf.width > 0 {
 		width = wf.width
 	}
-	if wf.x == 0 {
+	if wf.x0 == 0 {
 		xPos = (maxX - width) / 2
 		if xPos < 0 {
 			xPos = 0
@@ -166,36 +159,6 @@ func (wf *WidgetFloaty) Keybinds(g *gocui.Gui) {
 	}
 }
 
-// GetName returns floaty widget name
-func (wf *WidgetFloaty) GetName() string {
-	return wf.name
-}
-
-// GetView returns floaty widget GUI View
-func (wf *WidgetFloaty) GetView() *gocui.View {
-	return wf.gview
-}
-
-// IsHidden checks if floaty widget is disabled
-func (wf *WidgetFloaty) IsHidden() bool {
-	return wf.Enabled == false
-}
-
-// Connect content producing channel
-func (wf *WidgetFloaty) Connect(conn *RecvConn) {
-	if wf.conn != nil {
-		wf.conn.Stop()
-	}
-	wf.conn = conn
-}
-
-// Disconnect content producing channel
-func (wf *WidgetFloaty) Disconnect() {
-	if wf.conn != nil {
-		wf.conn.Stop()
-	}
-}
-
 func addSimplePopupWidget(name string, color gocui.Attribute, x int, y int, width int, height int, body string) (*WidgetFloaty, error) {
 	if color != 0 {
 		// set color for the frame
@@ -236,8 +199,8 @@ func addSimplePopupWidget(name string, color gocui.Attribute, x int, y int, widt
 		// otherwise just update size, position and content
 		widget.width = width
 		widget.height = height
-		widget.x = x
-		widget.y = y
+		widget.x0 = x
+		widget.y0 = y
 		// this shouldn't be nil, as it already exists
 		if widget.gview != nil {
 			widget.gview.Clear()

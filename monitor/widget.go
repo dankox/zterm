@@ -2,8 +2,6 @@ package monitor
 
 import (
 	"fmt"
-	"log"
-	"time"
 
 	"github.com/awesome-gocui/gocui"
 )
@@ -12,34 +10,30 @@ import (
 type Widget struct {
 	name    string
 	body    string
-	pos     int
+	x0, y0  int // coordinates top-left
+	x1, y1  int // coordinates bottom-right
 	height  int
 	width   int
-	x0, y0  int // for floaty widgets
-	x1, y1  int // for floaty widgets
 	gview   *gocui.View
-	stopFun chan bool
 	conn    *RecvConn
-	refresh time.Duration
-	Fun     func(WidgetManager) error
 	Enabled bool
 }
 
-// NewWidget creates a widget for GUI
-func NewWidget(name string, pos int, height int, body string) *Widget {
-	return &Widget{name: name, pos: pos, height: height, body: body, Enabled: true,
-		refresh: 5 * time.Second, stopFun: make(chan bool, 1)}
+// Widgeter cover Layout for GUI and some specifics for widgets
+type Widgeter interface {
+	// Layout is for gocui.GUI
+	Layout(*gocui.Gui) error
+	Keybinds(*gocui.Gui)
+	GetName() string
+	GetView() *gocui.View
+	IsHidden() bool
+	Connect(conn *RecvConn)
+	Disconnect()
 }
 
-// NewHelpWidget creates a widget for GUI
-func NewHelpWidget() *Widget {
-	return &Widget{name: "help-window", pos: 0, height: -1, Enabled: true,
-		body: `
-  Help for zMonitor tool:
-    - CTRL+C or F10 to exit the tool
-    - ESC to invoke console (can be used to type commands)
-    - Tab to swap between windows/views
-`}
+// NewWidget creates a widget for GUI
+func NewWidget(name string, x0 int, y0 int, x1 int, y1 int, body string) *Widget {
+	return &Widget{name: name, x0: x0, y0: y0, x1: x1, y1: y1, body: body, Enabled: true}
 }
 
 // Layout setup for widget
@@ -50,32 +44,8 @@ func (w *Widget) Layout(g *gocui.Gui) error {
 		w.gview = nil
 		return nil
 	}
-	// Enabled, display...
-	maxX, maxY := g.Size()
-	yHeight := maxY - 1 // initial height is 100%
-	if w.height > 0 {
-		yHeight = maxY * w.height / viewMaxSize
-	}
-	yPos := 0
-	for i, view := range viewOrder {
-		if i < w.pos {
-			yPos += maxY * config.Views[view] / viewMaxSize
-		} else {
-			break
-		}
-	}
-	// adjust height to maximum if it is last view
-	if w.pos+1 == len(viewOrder) && yPos+yHeight < maxY {
-		yHeight = maxY - yPos - 1
-	}
-
-	// save for floaty ;)
-	w.x0 = 0
-	w.y0 = yPos
-	w.x1 = maxX - 1
-	w.y1 = yPos + yHeight
 	// set view position and dimension
-	v, err := g.SetView(w.name, 0, yPos, maxX-1, yPos+yHeight, 0)
+	v, err := g.SetView(w.name, w.x0, w.y0, w.x1, w.y1, 0)
 	if err != nil {
 		if !gocui.IsUnknownView(err) {
 			return fmt.Errorf("view %v: %v", w.name, err)
@@ -83,36 +53,33 @@ func (w *Widget) Layout(g *gocui.Gui) error {
 		fmt.Fprint(v, w.body)
 	}
 	w.gview = v // set pointer to GUI View
-	if g.CurrentView() == nil && (len(viewOrder) == 0 || w.name != "help-window") {
-		g.SetCurrentView(w.name)
-	}
-
-	// set title
-	if g.CurrentView() == v {
-		v.Title = fmt.Sprintf("[ %v ]", w.name)
-	} else {
-		v.Title = fmt.Sprintf("| %v |", w.name)
-	}
+	v.Title = fmt.Sprintf("= %v =", w.name)
 	v.Autoscroll = true
 	return nil
 }
 
+// NewPrint clear and print new text into the widget
+func (w *Widget) NewPrint(str string) {
+	if w.gview != nil {
+		w.gview.Clear()
+		w.gview.SetOrigin(0, 0)
+		if len(str) > 0 {
+			w.gview.Autoscroll = true
+			fmt.Fprint(w.gview, str)
+		}
+	}
+}
+
+// Print append a text to the widget content
+func (w *Widget) Print(str string) {
+	if w.gview != nil {
+		w.gview.Autoscroll = true
+		fmt.Fprint(w.gview, str)
+	}
+}
+
 // Keybinds for specific widget
 func (w *Widget) Keybinds(g *gocui.Gui) {
-	// special keybinds for the widgets
-	// change refresh rate
-	if err := g.SetKeybinding(w.name, gocui.KeyCtrlR, gocui.ModNone, changeRefresh); err != nil {
-		log.Panicln(err)
-	}
-	// cancel key
-	if err := g.SetKeybinding(w.name, gocui.KeyCtrlZ, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
-		if v.Name() == w.name {
-			w.Disconnect()
-		}
-		return nil
-	}); err != nil {
-		log.Panicln(err)
-	}
 }
 
 // GetName returns widget name
@@ -143,119 +110,4 @@ func (w *Widget) Disconnect() {
 	if w.conn != nil {
 		w.conn.Stop()
 	}
-}
-
-// StartFun starts a function for the view to update it's content.
-// Function has to return string which is used for update
-func (w *Widget) StartFun() {
-	// check if function is set
-	if w.Fun == nil {
-		return
-	}
-
-	// setup goroutine
-	go func() {
-		// setup action function
-		action := func() error {
-			if err := w.Fun(w); err != nil {
-				appendErrorMsgToView(w.GetView(), err)
-				return err
-			}
-			return nil
-		}
-		// run it for the first time
-		acterr := action()
-
-		for {
-			// To make it possible to kill the Fun, we need to listen to 2 different channels
-			// one for stopFun and one for timeout, which would start the action again
-			sleepTime := make(chan struct{})
-			// sleeping goroutine
-			go func() {
-				<-time.After(w.refresh)
-				close(sleepTime)
-			}()
-			if acterr == nil {
-				select {
-				case <-w.stopFun:
-					w.Disconnect() // disconnect content channel
-					// w.conn.Stop()
-					return
-				case <-w.conn.IsEnd():
-				}
-			}
-			select {
-			case <-w.stopFun:
-				w.Disconnect()
-				return
-			case <-sleepTime:
-			}
-			acterr = action()
-		}
-	}()
-}
-
-// StopFun stops function running to update widget
-func (w *Widget) StopFun() {
-	if w.Fun == nil {
-		return
-	}
-	select {
-	case w.stopFun <- true:
-	default:
-		// channel is full, screw another write...
-	}
-}
-
-// Change refresh rate of the widget content (Fun stuff)
-func changeRefresh(g *gocui.Gui, v *gocui.View) error {
-	if v == nil {
-		return nil
-	}
-	if w := getWidget(v.Name()); w != nil {
-		w.StopFun()
-		switch w.refresh {
-		case 2 * time.Second:
-			w.refresh = 5 * time.Second
-		case 5 * time.Second:
-			w.refresh = 10 * time.Second
-		case 10 * time.Second:
-			w.refresh = 2 * time.Second
-		}
-		w.StartFun()
-		// add notification pop-up
-		if wf, err := addSimplePopupWidget("refresh-popup", gocui.ColorYellow, w.x0+1, w.y1-4, w.x1-2, 3,
-			fmt.Sprintf("refresh interval changed to %v", w.refresh)); err == nil {
-			// with CtrlR keybind to refresh THIS view (widget, not widget-floaty)
-			g.DeleteKeybinding(wf.name, gocui.KeyCtrlR, gocui.ModNone) // don't care about errors (just to not duplicate it)
-			if err := g.SetKeybinding(wf.name, gocui.KeyCtrlR, gocui.ModNone,
-				func(g *gocui.Gui, v *gocui.View) error {
-					nv, err := g.View(w.GetName())
-					if err != nil {
-						return err
-					}
-					return changeRefresh(g, nv)
-				}); err != nil {
-				log.Panicln(err)
-			}
-			// with KeyTab keybind to change to NEXT view directly (widget, not widget-floaty)
-			g.DeleteKeybinding(wf.name, gocui.KeyTab, gocui.ModNone) // don't care about errors (just to not duplicate it)
-			if err := g.SetKeybinding(wf.name, gocui.KeyTab, gocui.ModNone,
-				func(g *gocui.Gui, v *gocui.View) error {
-					nv, err := g.View(w.GetName())
-					if err != nil {
-						return err
-					}
-					// close this floaty
-					closeFloatyWidget(g, v)
-					// change ;)
-					changeView(g, nv)
-					return nil
-				}); err != nil {
-				log.Panicln(err)
-			}
-
-		}
-	}
-	return nil
 }

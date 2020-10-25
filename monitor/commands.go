@@ -28,7 +28,7 @@ var cmdAuto = map[string][]string{
 	"ls":     {"#list-dir"},
 }
 
-func commandExecute(wgm WidgetManager, command string) error {
+func commandExecute(wgm Widgeter, command string) error {
 	cmdParts := strings.Split(strings.TrimSpace(command), " ")
 
 	switch cmdParts[0] {
@@ -50,7 +50,7 @@ func commandExecute(wgm WidgetManager, command string) error {
 		viewMaxSize += 10
 		viewOrder = append(viewOrder, vname)
 		// prepare widgets
-		widget := NewWidget(vname, len(viewOrder)-1, 10, "new view")
+		widget := NewWidgetStack(vname, len(viewOrder)-1, 10, "new view")
 		widgets = append(widgets, widget)
 		widget.Keybinds(gui)
 		// run layouts to sort the order (console on top)
@@ -63,7 +63,7 @@ func commandExecute(wgm WidgetManager, command string) error {
 		}
 
 		vname := cmdParts[1]
-		widget := getWidget(vname)
+		widget := getWidgetStack(vname)
 		if widget == nil {
 			return fmt.Errorf("resize: view '%s' doesn't exist", vname)
 		}
@@ -85,17 +85,17 @@ func commandExecute(wgm WidgetManager, command string) error {
 		}
 
 		vname := cmdParts[1]
-		widget := getWidget(vname)
+		widget := getWidgetStack(vname)
 		if widget == nil {
 			return fmt.Errorf("attach: view '%s' doesn't exist", vname)
 		}
 		widget.StopFun()
 		if cmdParts[2] == "remote" && len(cmdParts) > 3 {
-			widget.Fun = func(w WidgetManager) error {
+			widget.Fun = func(w Widgeter) error {
 				return cmdSSH(w, strings.Join(cmdParts[3:], " "))
 			}
 		} else {
-			widget.Fun = func(w WidgetManager) error {
+			widget.Fun = func(w Widgeter) error {
 				return cmdShell(w, strings.Join(cmdParts[2:], " "))
 			}
 		}
@@ -127,13 +127,13 @@ func commandExecute(wgm WidgetManager, command string) error {
 }
 
 // simple function for testing widgets
-func cmdSyslogShell(widget WidgetManager) error {
+func cmdSyslogShell(widget Widgeter) error {
 	// handle bash command execution
 	return cmdSSH(widget, "zsyslog")
 }
 
 // simple function for testing widgets
-func cmdTestShell(widget WidgetManager) error {
+func cmdTestShell(widget Widgeter) error {
 	// fake error
 	if (time.Now().Second() % 30) < 10 {
 		return errors.New("WTF??? Eroooooooooooooooorrr... ")

@@ -146,7 +146,7 @@ func appendErrorMsgToView(v *gocui.View, err error) {
 }
 
 // Connect widget view to receive content from channels
-func connectWidgetOuput(w WidgetManager, conn *RecvConn) {
+func connectWidgetOuput(w Widgeter, conn *RecvConn) {
 	if conn == nil {
 		return
 	}

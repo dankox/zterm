@@ -25,18 +25,6 @@ type Config struct {
 	Views  map[string]int
 }
 
-// WidgetManager cover Layout for GUI and some specifics for widgets
-type WidgetManager interface {
-	// Layout is for gocui.GUI
-	Layout(*gocui.Gui) error
-	Keybinds(*gocui.Gui)
-	GetName() string
-	GetView() *gocui.View
-	IsHidden() bool
-	Connect(conn *RecvConn)
-	Disconnect()
-}
-
 var (
 	// default config with empty View map (so we don't have to do make)
 	config = Config{
@@ -47,7 +35,7 @@ var (
 	// widget/view parameters
 	viewOrder   []string
 	viewMaxSize = 0
-	widgets     []WidgetManager
+	widgets     []Widgeter
 	gui         *gocui.Gui
 
 	// TUI coloring
@@ -130,15 +118,15 @@ func Main() {
 }
 
 // setupManagers prepare list of widgets where each of them manage its own layout and data
-func setupManagers() []WidgetManager {
-	managers := []WidgetManager{}
+func setupManagers() []Widgeter {
+	managers := []Widgeter{}
 
 	// add help widget first
 	managers = append(managers, NewHelpWidget())
 
 	// add configured views
 	for i, v := range viewOrder {
-		widget := NewWidget(v, i, config.Views[v], fmt.Sprintf("Loading %v...", v))
+		widget := NewWidgetStack(v, i, config.Views[v], fmt.Sprintf("Loading %v...", v))
 		if widget.GetName() == "1-joblog" {
 			widget.Fun = cmdTestShell
 			widget.StartFun()
@@ -175,7 +163,7 @@ func handleLayouts(g *gocui.Gui) error {
 	return nil
 }
 
-func getWidgetManager(name string) WidgetManager {
+func getWidgetManager(name string) Widgeter {
 	for _, w := range widgets {
 		if w.GetName() == name {
 			return w
@@ -205,11 +193,11 @@ func getConsoleWidget() *WidgetConsole {
 	return nil
 }
 
-func getWidget(name string) *Widget {
+func getWidgetStack(name string) *WidgetStack {
 	for _, w := range widgets {
 		if w.GetName() == name {
-			if ww, ok := w.(*Widget); ok {
-				return ww
+			if ws, ok := w.(*WidgetStack); ok {
+				return ws
 			}
 			return nil
 		}

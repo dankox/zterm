@@ -11,14 +11,11 @@ import (
 
 // WidgetConsole structure for GUI
 type WidgetConsole struct {
-	gview      *gocui.View
+	Widget
 	lastView   string
 	cmdHistory []string
 	histIndex  int
-	ctx        context.Context
 	cancel     context.CancelFunc
-	conn       *RecvConn
-	Enabled    bool
 }
 
 var (
@@ -30,7 +27,7 @@ var (
 // NewWidgetConsole creates a widget for GUI which doesn't contribute to the layout.
 // This type of widget is displayed on top over the layout.
 func NewWidgetConsole() *WidgetConsole {
-	return &WidgetConsole{Enabled: false}
+	return &WidgetConsole{Widget: Widget{name: cmdView, Enabled: false}}
 }
 
 // Layout setup for console widget
@@ -135,36 +132,6 @@ func (wc *WidgetConsole) Keybinds(g *gocui.Gui) {
 		return nil
 	}); err != nil {
 		log.Panicln(err)
-	}
-}
-
-// GetName returns console widget name
-func (wc *WidgetConsole) GetName() string {
-	return cmdView
-}
-
-// GetView returns console widget GUI View
-func (wc *WidgetConsole) GetView() *gocui.View {
-	return wc.gview
-}
-
-// IsHidden checks if console widget is disabled
-func (wc *WidgetConsole) IsHidden() bool {
-	return wc.Enabled == false
-}
-
-// Connect content producing channel
-func (wc *WidgetConsole) Connect(conn *RecvConn) {
-	if wc.conn != nil {
-		wc.conn.Stop()
-	}
-	wc.conn = conn
-}
-
-// Disconnect content producing channel
-func (wc *WidgetConsole) Disconnect() {
-	if wc.conn != nil {
-		wc.conn.Stop()
 	}
 }
 

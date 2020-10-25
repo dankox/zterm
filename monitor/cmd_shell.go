@@ -13,7 +13,7 @@ import (
 )
 
 // Execute shell command and process output in Widget
-func cmdShell(widget WidgetManager, command string) error {
+func cmdShell(widget Widgeter, command string) error {
 	// setup widget context
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -73,7 +73,7 @@ func cmdShell(widget WidgetManager, command string) error {
 }
 
 // Execute vim command and use full terminal
-func cmdVim(widget WidgetManager, file string) error {
+func cmdVim(widget Widgeter, file string) error {
 	// handle bash command execution
 	c := exec.Command("sh", "-c", "vim "+file)
 	c.Stderr = os.Stderr
@@ -87,7 +87,7 @@ func cmdVim(widget WidgetManager, file string) error {
 }
 
 // func run(ctx context.Context) error {
-func cmdSSH(widget WidgetManager, cmd string) error {
+func cmdSSH(widget Widgeter, cmd string) error {
 	if sshConn == nil {
 		return errors.New("SSH connection not created! Adjust your configuration")
 	}
