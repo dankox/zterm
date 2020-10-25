@@ -120,7 +120,7 @@ func (ws *WidgetStack) StartFun() {
 		// setup action function
 		action := func() error {
 			if err := ws.Fun(ws); err != nil {
-				appendErrorMsgToView(ws.GetView(), err)
+				appendErrorMsgToView(ws, err)
 				return err
 			}
 			return nil

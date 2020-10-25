@@ -100,9 +100,9 @@ func (wc *WidgetConsole) Clear() {
 }
 
 // Error print error message to the console output line (second line below prompt)
-func (wc *WidgetConsole) Error(msg string) {
+func (wc *WidgetConsole) Error(err error) {
 	wc.gview.Clear()
-	fmt.Fprintf(wc.gview, ">> \n\x1b[31;1merror: \x1b[0m%v", msg)
+	fmt.Fprintf(wc.gview, ">> \n\x1b[31;1merror: \x1b[0m%v", err.Error())
 }
 
 // Print message to the console output line (second line below prompt)
@@ -142,10 +142,10 @@ func (wc *WidgetConsole) ExecCmd(cmd string) {
 	wc.histIndex = len(wc.cmdHistory)
 	// executing command
 	if wf, e := addSimplePopupWidget("console-output", gFrameOk, 0, 0, 0, -1, ""); e != nil {
-		wc.Error(e.Error())
+		wc.Error(e)
 	} else {
 		if err := commandExecute(wf, cmd); err != nil {
-			wc.Error(err.Error())
+			wc.Error(err)
 			closeFloatyWidget(gui, wf.GetView())
 		}
 	}

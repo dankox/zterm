@@ -29,6 +29,9 @@ type Widgeter interface {
 	IsHidden() bool
 	Connect(conn *RecvConn)
 	Disconnect()
+	CleanPrint(str string)
+	Print(str string)
+	Error(err error)
 }
 
 // NewWidget creates a widget for GUI
@@ -56,26 +59,6 @@ func (w *Widget) Layout(g *gocui.Gui) error {
 	v.Title = fmt.Sprintf("= %v =", w.name)
 	v.Autoscroll = true
 	return nil
-}
-
-// NewPrint clear and print new text into the widget
-func (w *Widget) NewPrint(str string) {
-	if w.gview != nil {
-		w.gview.Clear()
-		w.gview.SetOrigin(0, 0)
-		if len(str) > 0 {
-			w.gview.Autoscroll = true
-			fmt.Fprint(w.gview, str)
-		}
-	}
-}
-
-// Print append a text to the widget content
-func (w *Widget) Print(str string) {
-	if w.gview != nil {
-		w.gview.Autoscroll = true
-		fmt.Fprint(w.gview, str)
-	}
 }
 
 // Keybinds for specific widget
@@ -109,5 +92,35 @@ func (w *Widget) Connect(conn *RecvConn) {
 func (w *Widget) Disconnect() {
 	if w.conn != nil {
 		w.conn.Stop()
+	}
+}
+
+// CleanPrint clear and print new text into the widget
+func (w *Widget) CleanPrint(str string) {
+	if w.gview != nil {
+		w.gview.Clear()
+		w.gview.SetOrigin(0, 0)
+		if len(str) > 0 {
+			w.gview.Autoscroll = true
+			fmt.Fprint(w.gview, str)
+		}
+	}
+}
+
+// Print append a text to the widget content
+func (w *Widget) Print(str string) {
+	if w.gview != nil {
+		w.gview.Autoscroll = true
+		fmt.Fprint(w.gview, str)
+	}
+}
+
+// Error append an error text to the widget content
+func (w *Widget) Error(err error) {
+	if w.gview != nil {
+		w.gview.Autoscroll = true
+		fmt.Fprintf(w.gview, "\x1b[31;1merror: \x1b[0m%v\n", err.Error())
+		// g.SelFrameColor = gFrameError // ??
+		// g.SelFgColor = gFrameError
 	}
 }

@@ -1,7 +1,6 @@
 package monitor
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/awesome-gocui/gocui"
@@ -96,50 +95,30 @@ func setDefaultView(g *gocui.Gui) {
 }
 
 // Put text into the View. This will delete the previous content
-func textToView(v *gocui.View, outstr string) {
-	if v != nil {
+func textToView(w Widgeter, outstr string) {
+	if w != nil {
 		gui.UpdateAsync(func(g *gocui.Gui) error {
-			v.Clear()
-			v.SetOrigin(0, 0)
-			if len(outstr) > 0 {
-				v.Autoscroll = true
-				fmt.Fprint(v, outstr)
-			}
+			w.CleanPrint(outstr)
 			return nil
 		})
 	}
 }
 
 // Append text to the View. This will preserve previously added content
-func appendTextToView(v *gocui.View, outstr string) {
-	if v != nil {
+func appendTextToView(w Widgeter, outstr string) {
+	if w != nil {
 		gui.UpdateAsync(func(g *gocui.Gui) error {
-			v.Autoscroll = true
-			fmt.Fprint(v, outstr)
-			return nil
-		})
-	}
-}
-
-// Append error to the View. This will preserve previously added content and will change color of the widget
-func appendErrorToView(v *gocui.View, err error) {
-	if v != nil {
-		gui.UpdateAsync(func(g *gocui.Gui) error {
-			v.Autoscroll = true
-			fmt.Fprintf(v, "error: %v\n", err.Error())
-			g.SelFrameColor = gFrameError
-			g.SelFgColor = gFrameError
+			w.Print(outstr)
 			return nil
 		})
 	}
 }
 
 // Append highlighter error message to the View. This will preserve previously added content
-func appendErrorMsgToView(v *gocui.View, err error) {
-	if v != nil {
+func appendErrorMsgToView(w Widgeter, err error) {
+	if w != nil {
 		gui.UpdateAsync(func(g *gocui.Gui) error {
-			v.Autoscroll = true
-			fmt.Fprintf(v, "\x1b[31;1merror: \x1b[0m%v\n", err.Error())
+			w.Error(err)
 			return nil
 		})
 	}
@@ -165,10 +144,10 @@ func connectWidgetOuput(w Widgeter, conn *RecvConn) {
 				if !ok {
 					if len(output) > 0 {
 						if first {
-							textToView(w.GetView(), output)
+							textToView(w, output)
 							first = false
 						} else {
-							appendTextToView(w.GetView(), output)
+							appendTextToView(w, output)
 						}
 					}
 					// don't need to clean output, just break out
@@ -178,10 +157,10 @@ func connectWidgetOuput(w Widgeter, conn *RecvConn) {
 				// display in FPS ~60hz
 				if len(output) > 0 {
 					if first {
-						textToView(w.GetView(), output)
+						textToView(w, output)
 						first = false
 					} else {
-						appendTextToView(w.GetView(), output)
+						appendTextToView(w, output)
 					}
 					output = ""
 				}
@@ -190,7 +169,7 @@ func connectWidgetOuput(w Widgeter, conn *RecvConn) {
 		}
 		// add to renderloop???
 		for err := range conn.err {
-			appendErrorMsgToView(w.GetView(), err)
+			appendErrorMsgToView(w, err)
 		}
 		conn.Stop()
 	}()
