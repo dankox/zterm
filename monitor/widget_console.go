@@ -21,6 +21,7 @@ type WidgetConsole struct {
 var (
 	cmdView       = "console"
 	cmdPrompt     = "console-prompt"
+	cmdPromptPS1  = "console-prompt-ps1"
 	consoleHeight = 3
 )
 
@@ -34,8 +35,9 @@ func NewWidgetConsole() *WidgetConsole {
 func (wc *WidgetConsole) Layout(g *gocui.Gui) error {
 	// do not display if disabled
 	if !wc.Enabled {
-		g.DeleteView(cmdView)   // if doesn't exist, don't care
-		g.DeleteView(cmdPrompt) // ditto...
+		g.DeleteView(cmdView)      // if doesn't exist, don't care
+		g.DeleteView(cmdPrompt)    // ditto...
+		g.DeleteView(cmdPromptPS1) // ditto...
 		wc.gview = nil
 		// check if current view was pointing to this view before (just to be sure!)
 		if g.CurrentView() != nil && g.CurrentView().Name() == cmdPrompt {
@@ -51,17 +53,26 @@ func (wc *WidgetConsole) Layout(g *gocui.Gui) error {
 	// Enabled, display...
 	maxX, maxY := g.Size()
 	// compute correct position and width
-	yPos := maxY - 1 - consoleHeight
+	maxHeight := consoleHeight
+	if wc.gview != nil {
+		if wc.gview.LinesHeight() > 0 {
+			maxHeight += wc.gview.LinesHeight() - 1
+		}
+		if maxHeight > int(float64(maxY)*0.6) {
+			maxHeight = int(float64(maxY) * 0.6)
+		}
+	}
+	yPos := maxY - 1 - maxHeight
 	width := maxX - 1
 
 	// set console "outer" window
-	v, err := g.SetView(cmdView, 0, yPos, width, yPos+consoleHeight, 0)
+	v, err := g.SetView(cmdView, 0, yPos, width, yPos+maxHeight, 0)
 	if err != nil {
 		if !gocui.IsUnknownView(err) {
 			return fmt.Errorf("view %v: %v", cmdView, err)
 		}
-		wc.gview = v // set pointer to GUI View for next command
-		wc.Clear()
+		// wc.gview = v // set pointer to GUI View for wc.Clear() command
+		// wc.Clear()
 	}
 	wc.gview = v // set pointer to GUI View (only for view, not for input)
 
@@ -69,13 +80,23 @@ func (wc *WidgetConsole) Layout(g *gocui.Gui) error {
 	v.Title = fmt.Sprintf("< %v >", cmdView)
 	g.SetViewOnTop(cmdView)
 
-	// set console "input" line
-	v, err = g.SetView(cmdPrompt, 3, yPos, width, yPos+2, 0)
+	// set consol prompt PS1
+	v, err = g.SetView(cmdPromptPS1, 0, yPos+maxHeight-2, 4, yPos+maxHeight, 0)
 	if err != nil {
 		if !gocui.IsUnknownView(err) {
 			return fmt.Errorf("view %v: %v", cmdView, err)
 		}
-		// fmt.Fprint(v, "hello danko")
+		fmt.Fprint(v, ">>")
+	}
+	v.Frame = false
+	g.SetViewOnTop(cmdPromptPS1)
+
+	// set console "input" line
+	v, err = g.SetView(cmdPrompt, 3, yPos+maxHeight-2, width, yPos+maxHeight, 0)
+	if err != nil {
+		if !gocui.IsUnknownView(err) {
+			return fmt.Errorf("view %v: %v", cmdView, err)
+		}
 	}
 
 	// save last CurrentView
@@ -93,29 +114,33 @@ func (wc *WidgetConsole) Layout(g *gocui.Gui) error {
 	return nil
 }
 
-// Clear console output line (still draw console prompt)
+// Clear override to not clear the console output (this is triggered everytime new command is issued in update)
 func (wc *WidgetConsole) Clear() {
-	wc.gview.Clear()
-	fmt.Fprintf(wc.gview, ">> \n")
+	// wc.gview.Clear()
 }
 
 // Error print error message to the console output line (second line below prompt)
 func (wc *WidgetConsole) Error(err error) {
-	wc.gview.Clear()
-	fmt.Fprintf(wc.gview, ">> \n\x1b[31;1merror: \x1b[0m%v", err.Error())
+	wc.gview.Autoscroll = true
+	fmt.Fprintf(wc.gview, "\x1b[31;1merror: \x1b[0m%v\n\n", err.Error())
 }
 
-// Print message to the console output line (second line below prompt)
+// Print message to the console output line
 func (wc *WidgetConsole) Print(msg string) {
-	wc.gview.Clear()
-	fmt.Fprintf(wc.gview, ">> \n%v", msg)
+	wc.gview.Autoscroll = true
+	fmt.Fprint(wc.gview, msg)
+}
+
+// Println prints message to the console output line and add new line at the end
+func (wc *WidgetConsole) Println(msg string) {
+	wc.gview.Autoscroll = true
+	fmt.Fprintln(wc.gview, msg)
 }
 
 // Printf print formatted message to the console output line (second line below prompt)
 func (wc *WidgetConsole) Printf(format string, a ...interface{}) {
-	wc.gview.Clear()
-	format = ">> \n" + format
-	fmt.Fprintf(wc.gview, format, a)
+	wc.gview.Autoscroll = true
+	fmt.Fprintf(wc.gview, format, a...) // should there be ... ???
 }
 
 // Keybinds for specific widget
@@ -140,14 +165,11 @@ func (wc *WidgetConsole) ExecCmd(cmd string) {
 	// add to history and update index
 	wc.cmdHistory = append(wc.cmdHistory, cmd)
 	wc.histIndex = len(wc.cmdHistory)
-	// executing command
-	if wf, e := addSimplePopupWidget("console-output", gFrameOk, 0, 0, 0, -1, ""); e != nil {
-		wc.Error(e)
+	if err := commandExecute(wc, cmd); err != nil {
+		wc.Println(">> " + cmd)
+		wc.Error(err)
 	} else {
-		if err := commandExecute(wf, cmd); err != nil {
-			wc.Error(err)
-			closeFloatyWidget(gui, wf.GetView())
-		}
+		wc.Println(">> " + cmd)
 	}
 }
 
@@ -191,7 +213,9 @@ func showConsole(g *gocui.Gui, v *gocui.View) error {
 		if wc.IsHidden() {
 			wc.Enabled = true
 		} else {
+			wc.Disconnect()
 			wc.Enabled = false
+			wc.Layout(g)
 			// check if current view was pointing to this view before (just to be sure!)
 			if g.CurrentView() != nil && g.CurrentView().Name() == cmdPrompt {
 				if wc.lastView != "" {
@@ -215,8 +239,6 @@ func consoleEditor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 		// if no console widget... wtf are we doing here??
 		return
 	}
-	// clear before processing keystrokes
-	wc.Clear()
 
 	switch {
 	case ch != 0 && mod == 0:
@@ -271,6 +293,18 @@ func consoleEditor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 		v.EditGotoToStartOfLine()
 	case key == gocui.KeyCtrlE:
 		v.EditGotoToEndOfLine()
+
+	// these are for console output view (not for the actual command line)
+	case key == gocui.KeyPgup:
+		if wc := getConsoleWidget(); wc != nil {
+			scrollView(wc.gview, -10)
+		}
+
+	case key == gocui.KeyPgdn:
+		if wc := getConsoleWidget(); wc != nil {
+			scrollView(wc.gview, 10)
+		}
+
 	default:
 		v.EditWrite(ch)
 	}
@@ -309,11 +343,9 @@ func autoComplete(g *gocui.Gui, v *gocui.View) error {
 			}
 			fmt.Fprint(v, finalcmd)
 			v.SetCursor(len(finalcmd), 0)
-			// TODO: do check for nil???
-			getConsoleWidget().Clear()
 		} else if len(final) > 1 {
 			wc := getConsoleWidget()
-			wc.Print(strings.Join(final, " "))
+			wc.Println(strings.Join(final, " "))
 		}
 	}
 	return nil

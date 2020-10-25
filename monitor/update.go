@@ -96,9 +96,12 @@ func setDefaultView(g *gocui.Gui) {
 
 // Put text into the View. This will delete the previous content
 func textToView(w Widgeter, outstr string) {
-	if w != nil {
+	if w != nil && !w.IsHidden() {
 		gui.UpdateAsync(func(g *gocui.Gui) error {
-			w.CleanPrint(outstr)
+			w.Clear()
+			if len(outstr) > 0 {
+				w.Print(outstr)
+			}
 			return nil
 		})
 	}
@@ -106,7 +109,7 @@ func textToView(w Widgeter, outstr string) {
 
 // Append text to the View. This will preserve previously added content
 func appendTextToView(w Widgeter, outstr string) {
-	if w != nil {
+	if w != nil && !w.IsHidden() {
 		gui.UpdateAsync(func(g *gocui.Gui) error {
 			w.Print(outstr)
 			return nil
@@ -177,4 +180,40 @@ func connectWidgetOuput(w Widgeter, conn *RecvConn) {
 
 func quit(g *gocui.Gui, v *gocui.View) error {
 	return gocui.ErrQuit
+}
+
+func scrollView(v *gocui.View, dy int) error {
+	if v != nil {
+		v.Autoscroll = false
+		ox, oy := v.Origin()
+		lh := v.LinesHeight()
+		v.Subtitle = ""
+		// verify to not scroll out
+		if oy+dy < 0 {
+			dy = -oy
+			v.Subtitle = "[ TOP ]"
+		} else if oy+dy >= (lh - 5) {
+			dy = lh - oy - 5 // scroll at the bottom to display last 5 lines
+			v.Subtitle = "[ BOTTOM ]"
+		}
+		if err := v.SetOrigin(ox, oy+dy); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func sideScrollView(v *gocui.View, dx int) error {
+	if v != nil {
+		v.Wrap = false
+		ox, oy := v.Origin()
+		// verify to not scroll out
+		if ox+dx < 0 {
+			dx = -ox
+		}
+		if err := v.SetOrigin(ox+dx, oy); err != nil {
+			return err
+		}
+	}
+	return nil
 }

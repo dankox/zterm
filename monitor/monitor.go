@@ -88,7 +88,7 @@ func Main() {
 	sort.Strings(viewOrder)
 
 	// setup UI
-	g, err := gocui.NewGui(gocui.OutputNormal, false)
+	g, err := gocui.NewGui(gocui.OutputNormal, true)
 	if err != nil {
 		log.Panicln(err)
 	}

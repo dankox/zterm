@@ -66,8 +66,13 @@ func (ws *WidgetStack) Layout(g *gocui.Gui) error {
 	ws.y0 = yPos
 	ws.x1 = maxX - 1
 	ws.y1 = yPos + yHeight
+	// overlap, for first in stack, set to 0 (so it looks good :)
+	var overlap byte = 1
+	if ws.pos == 0 {
+		overlap = 0
+	}
 	// set view position and dimension
-	v, err := g.SetView(ws.name, 0, yPos, maxX-1, yPos+yHeight, 0)
+	v, err := g.SetView(ws.name, 0, yPos, maxX-1, yPos+yHeight, overlap)
 	if err != nil {
 		if !gocui.IsUnknownView(err) {
 			return fmt.Errorf("view %v: %v", ws.name, err)
@@ -174,25 +179,25 @@ func changeRefresh(g *gocui.Gui, v *gocui.View) error {
 	if v == nil {
 		return nil
 	}
-	if w := getWidgetStack(v.Name()); w != nil {
-		w.StopFun()
-		switch w.refresh {
+	if ws := getWidgetStack(v.Name()); ws != nil {
+		ws.StopFun()
+		switch ws.refresh {
 		case 2 * time.Second:
-			w.refresh = 5 * time.Second
+			ws.refresh = 5 * time.Second
 		case 5 * time.Second:
-			w.refresh = 10 * time.Second
+			ws.refresh = 10 * time.Second
 		case 10 * time.Second:
-			w.refresh = 2 * time.Second
+			ws.refresh = 2 * time.Second
 		}
-		w.StartFun()
+		ws.StartFun()
 		// add notification pop-up
-		if wf, err := addSimplePopupWidget("refresh-popup", gocui.ColorYellow, w.x0+1, w.y1-4, w.x1-2, 3,
-			fmt.Sprintf("refresh interval changed to %v", w.refresh)); err == nil {
+		if wf, err := addSimplePopupWidget("refresh-popup", gocui.ColorYellow, ws.x0+1, ws.y1-4, ws.x1-2, 3,
+			fmt.Sprintf("refresh interval changed to %v", ws.refresh)); err == nil {
 			// with CtrlR keybind to refresh THIS view (widget, not widget-floaty)
 			g.DeleteKeybinding(wf.name, gocui.KeyCtrlR, gocui.ModNone) // don't care about errors (just to not duplicate it)
 			if err := g.SetKeybinding(wf.name, gocui.KeyCtrlR, gocui.ModNone,
 				func(g *gocui.Gui, v *gocui.View) error {
-					nv, err := g.View(w.GetName())
+					nv, err := g.View(ws.GetName())
 					if err != nil {
 						return err
 					}
@@ -204,7 +209,7 @@ func changeRefresh(g *gocui.Gui, v *gocui.View) error {
 			g.DeleteKeybinding(wf.name, gocui.KeyTab, gocui.ModNone) // don't care about errors (just to not duplicate it)
 			if err := g.SetKeybinding(wf.name, gocui.KeyTab, gocui.ModNone,
 				func(g *gocui.Gui, v *gocui.View) error {
-					nv, err := g.View(w.GetName())
+					nv, err := g.View(ws.GetName())
 					if err != nil {
 						return err
 					}

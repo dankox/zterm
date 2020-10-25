@@ -19,7 +19,7 @@ var pageScroll = 10
 // NewWidgetFloaty creates a widget for GUI which doesn't contribute to the layout.
 // This type of widget is displayed on top over the layout.
 func NewWidgetFloaty(name string, x, y int, width int, height int, body string) *WidgetFloaty {
-	return &WidgetFloaty{Widget: Widget{name: name, body: body, x0: x, y0: y, width: 0, height: height, Enabled: true}}
+	return &WidgetFloaty{Widget: Widget{name: name, body: body, x0: x, y0: y, width: width, height: height, Enabled: true}}
 }
 
 // Layout setup for floaty widget
@@ -169,7 +169,7 @@ func addSimplePopupWidget(name string, color gocui.Attribute, x int, y int, widt
 	maxX, maxY := gui.Size()
 	// if width, height is zero, set to max
 	if width == 0 {
-		width = maxX - 1 // - 10
+		width = maxX - 1 - x // - 10
 	}
 	if height == 0 {
 		height = maxY // - 5 - 10
@@ -251,41 +251,5 @@ func closeFloatyWidget(g *gocui.Gui, v *gocui.View) error {
 		}
 	}
 
-	return nil
-}
-
-func scrollView(v *gocui.View, dy int) error {
-	if v != nil {
-		v.Autoscroll = false
-		ox, oy := v.Origin()
-		lh := v.LinesHeight()
-		v.Subtitle = ""
-		// verify to not scroll out
-		if oy+dy < 0 {
-			dy = -oy
-			v.Subtitle = "[ TOP ]"
-		} else if oy+dy >= (lh - 5) {
-			dy = lh - oy - 5 // scroll at the bottom to display last 5 lines
-			v.Subtitle = "[ BOTTOM ]"
-		}
-		if err := v.SetOrigin(ox, oy+dy); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func sideScrollView(v *gocui.View, dx int) error {
-	if v != nil {
-		v.Wrap = false
-		ox, oy := v.Origin()
-		// verify to not scroll out
-		if ox+dx < 0 {
-			dx = -ox
-		}
-		if err := v.SetOrigin(ox+dx, oy); err != nil {
-			return err
-		}
-	}
 	return nil
 }

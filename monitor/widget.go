@@ -29,7 +29,7 @@ type Widgeter interface {
 	IsHidden() bool
 	Connect(conn *RecvConn)
 	Disconnect()
-	CleanPrint(str string)
+	Clear()
 	Print(str string)
 	Error(err error)
 }
@@ -95,15 +95,11 @@ func (w *Widget) Disconnect() {
 	}
 }
 
-// CleanPrint clear and print new text into the widget
-func (w *Widget) CleanPrint(str string) {
+// Clear clears the widget content and reset position
+func (w *Widget) Clear() {
 	if w.gview != nil {
 		w.gview.Clear()
 		w.gview.SetOrigin(0, 0)
-		if len(str) > 0 {
-			w.gview.Autoscroll = true
-			fmt.Fprint(w.gview, str)
-		}
 	}
 }
 
