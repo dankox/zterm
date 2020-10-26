@@ -20,6 +20,7 @@ var cmdAuto = map[string][]string{
 	"help":    {},
 	"remote":  {},
 	"resize":  {"1-joblog", "2-syslog", "3-cmd"},
+	"view":    {"1-joblog", "2-syslog", "3-cmd"},
 
 	"pwd":    {},
 	"whoami": {},
@@ -79,6 +80,50 @@ func commandExecute(wgm Widgeter, command string) error {
 		viewMaxSize += widget.height - config.Views[vname]
 		config.Views[vname] = widget.height
 		return fmt.Errorf("view '%s' resized", vname)
+	case "view":
+		if len(cmdParts) < 3 {
+			return errors.New(`missing arguments 
+usage: view <view-name> <config>
+
+config options: 
+ hi-word   <word>    - highlight word
+ hi-line   <word>    - highlight line which contains word
+ hi-remove <word>    - remove highlight for specific word
+ refresh   <number>  - set refresh interval to number`)
+		}
+
+		vname := cmdParts[1]
+		vconf := cmdParts[2]
+		widget := getWidgetStack(vname)
+		if widget == nil {
+			return fmt.Errorf("view: view '%s' doesn't exist", vname)
+		}
+		switch vconf {
+		case "hi-word":
+			fallthrough
+		case "hi-line":
+			if len(cmdParts) < 4 {
+				return fmt.Errorf("view: view %s needs a <word> parameter", vconf)
+			}
+			if widget.highlight == nil {
+				widget.highlight = make(map[string]bool)
+			}
+			if vconf == "hi-word" {
+				widget.highlight[cmdParts[3]] = false
+			} else {
+				widget.highlight[cmdParts[3]] = true
+			}
+		case "hi-remove":
+			if len(cmdParts) < 4 {
+				return fmt.Errorf("view: view %s needs a <word> parameter", vconf)
+			}
+			if widget.highlight != nil {
+				delete(widget.highlight, cmdParts[3])
+			}
+		default:
+			return fmt.Errorf("view: config option %s not implemented", vconf)
+		}
+		return fmt.Errorf("view %s configured", vname)
 	case "attach":
 		if len(cmdParts) < 3 {
 			return errors.New("missing arguments - usage: attach <view-name> <command>")

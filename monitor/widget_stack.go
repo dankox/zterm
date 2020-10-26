@@ -3,6 +3,7 @@ package monitor
 import (
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/awesome-gocui/gocui"
@@ -11,11 +12,15 @@ import (
 // WidgetStack structure for GUI (widgets which are stack on each other)
 type WidgetStack struct {
 	Widget
-	pos     int
-	stopFun chan bool
-	Fun     func(Widgeter) error
-	refresh time.Duration
+	pos       int
+	stopFun   chan bool
+	Fun       func(Widgeter) error
+	refresh   time.Duration
+	highlight map[string]bool
 }
+
+var hiColor = "\x1b[35;2m"
+var resAnsi = "\x1b[0m"
 
 // NewWidgetStack creates a widget for stack GUI
 func NewWidgetStack(name string, pos int, height int, body string) *WidgetStack {
@@ -109,6 +114,45 @@ func (ws *WidgetStack) Keybinds(g *gocui.Gui) {
 		return nil
 	}); err != nil {
 		log.Panicln(err)
+	}
+}
+
+// Print append a text to the widget content.
+// Printed line or word will be highlighted if such word exist in `highlight` map in WidgetStack.
+func (ws *WidgetStack) Print(str string) {
+	if ws.gview != nil {
+		ws.gview.Autoscroll = true
+		if ws.highlight != nil && len(ws.highlight) > 0 {
+			// remove last new line
+			if str[len(str)-1] == '\n' {
+				str = str[:len(str)-1]
+			}
+			lines := strings.Split(str, "\n")
+			for _, line := range lines {
+				written := false
+				for sub, hiLine := range ws.highlight {
+					if strings.Contains(line, sub) {
+						if hiLine {
+							// highlight full line
+							fmt.Fprintf(ws.gview, "%s%s%s\n", hiColor, line, resAnsi)
+							written = true
+							break
+						}
+						// highlight word only
+						fmt.Fprintln(ws.gview, strings.ReplaceAll(line, sub, hiColor+sub+resAnsi))
+						written = true
+						break
+					}
+				}
+				// write normal (if not in highlight)
+				if !written {
+					fmt.Fprintln(ws.gview, line)
+				}
+			}
+		} else {
+			// write full text if no highlight map
+			fmt.Fprint(ws.gview, str)
+		}
 	}
 }
 
