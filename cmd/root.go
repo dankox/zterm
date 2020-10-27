@@ -26,7 +26,7 @@ var rootCmd = &cobra.Command{
 	Long: `zMonitor is a TUI monitoring tool for z/OS systems.
 
 Displays system logs, jobs, activity and user defined commands in semi-online
-mode, which refreshes data obtained from the remote system in intervals. 
+mode, which refreshes data obtained from the remote system in intervals.
 This way user has live representation of the activity on z/OS system.
 (Access to the systems is done thru ssh protocol.)`,
 	Args: func(cmd *cobra.Command, args []string) error {
@@ -89,7 +89,7 @@ func initConfig() {
 		viper.AddConfigPath(".")
 		viper.AddConfigPath(home)
 		viper.SetConfigName(".zmonitor")
-		viper.SetConfigType("toml")
+		viper.SetConfigType("ini")
 	}
 
 	viper.AutomaticEnv() // read in environment variables that match
