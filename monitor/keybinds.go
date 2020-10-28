@@ -21,6 +21,19 @@ func keybindsGlobal(g *gocui.Gui) {
 		log.Panicln(err)
 	}
 
+	// help
+	if err := g.SetKeybinding("", gocui.KeyF1, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
+		for _, w := range widgets {
+			if w.GetName() == "help-window" {
+				return closeFloatyWidget(g, v)
+			}
+		}
+		PopupHelpWidget()
+		return nil
+	}); err != nil {
+		log.Panicln(err)
+	}
+
 	// console - Esc or ` to turn on (Esc is to turn off too)
 	if err := g.SetKeybinding("", gocui.KeyEsc, gocui.ModNone, showConsole); err != nil {
 		log.Panicln(err)

@@ -101,11 +101,21 @@ func Main() {
 	widgets = setupManagers()
 	g.SetManagerFunc(handleLayouts)
 
+	hasWidgets := false
 	// set keybinds (after layout manager)
 	for _, w := range widgets {
 		w.Keybinds(g)
+		if w.GetName() != cmdView {
+			hasWidgets = true
+		}
 	}
 	keybindsGlobal(g)
+
+	// if no widget stack, show help
+	if !hasWidgets {
+		// this needs to be run at the end, because it handles all keybinds and layouts and stuff
+		PopupHelpWidget()
+	}
 
 	// main loop running
 	if err := g.MainLoop(); err != nil && !gocui.IsQuit(err) {
@@ -150,11 +160,6 @@ func setupManagers() []Widgeter {
 		managers = append(managers, widget)
 	}
 	sortWidgetManager(managers)
-
-	// add help widget if there is nothing yet
-	if len(managers) == 0 {
-		managers = append(managers, NewHelpWidget())
-	}
 
 	// add console widget
 	managers = append(managers, NewWidgetConsole())
