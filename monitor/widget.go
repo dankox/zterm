@@ -29,6 +29,7 @@ type Widgeter interface {
 	GetName() string
 	GetView() *gocui.View
 	IsHidden() bool
+	Position() int
 	Connect(conn *RecvConn)
 	Disconnect()
 	Clear()
@@ -80,6 +81,13 @@ func (w *Widget) GetView() *gocui.View {
 // IsHidden checks if widget is disabled
 func (w *Widget) IsHidden() bool {
 	return w.Enabled == false
+}
+
+// Position returns position of the widget in the stack. This is used for sorting purposes.
+// For basic widget it's always the biggest, because they should be after WidgetStack.
+func (w *Widget) Position() int {
+	// I don't think there will be more widgets than this
+	return 999 // This shouldn't be hardcoded like this, but whatev... ;)
 }
 
 // Connect content producing channel

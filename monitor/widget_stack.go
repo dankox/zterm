@@ -15,6 +15,7 @@ type WidgetStack struct {
 	pos       int
 	stopFun   chan bool
 	Fun       func(Widgeter) error
+	funStr    string
 	refresh   time.Duration
 	highlight map[string]bool
 }
@@ -26,17 +27,6 @@ var resAnsi = "\x1b[0m"
 func NewWidgetStack(name string, pos int, height int, body string) *WidgetStack {
 	return &WidgetStack{Widget: Widget{name: name, body: body, width: 0, height: height, Enabled: true}, pos: pos,
 		refresh: 5 * time.Second, stopFun: make(chan bool, 1)}
-}
-
-// NewHelpWidget creates a widget for GUI
-func NewHelpWidget() *WidgetStack {
-	return &WidgetStack{Widget: Widget{name: "help-window", width: 0, height: -1, Enabled: true,
-		body: `
-  Help for zMonitor tool:
-    - CTRL+C or F10 to exit the tool
-    - ESC to invoke console (can be used to type commands)
-    - Tab to swap between windows/views
-`}, pos: 0}
 }
 
 // Layout setup for widget
@@ -54,15 +44,15 @@ func (ws *WidgetStack) Layout(g *gocui.Gui) error {
 		yHeight = maxY * ws.height / viewMaxSize
 	}
 	yPos := 0
-	for i, view := range viewOrder {
-		if i < ws.pos {
-			yPos += maxY * config.Views[view] / viewMaxSize
+	for _, wl := range getSortedWidgetStack() {
+		if wl.Position() < ws.pos {
+			yPos += maxY * wl.height / viewMaxSize
 		} else {
 			break
 		}
 	}
 	// adjust height to maximum if it is last view
-	if ws.pos+1 == len(viewOrder) && yPos+yHeight < maxY {
+	if ws.pos == viewLastPos && yPos+yHeight < maxY {
 		yHeight = maxY - yPos - 1
 	}
 
@@ -73,7 +63,7 @@ func (ws *WidgetStack) Layout(g *gocui.Gui) error {
 	ws.y1 = yPos + yHeight
 	// overlap, for first in stack, set to 0 (so it looks good :)
 	var overlap byte = 1
-	if ws.pos == 0 {
+	if ws.pos == viewFirstPos {
 		overlap = 0
 	}
 	// set view position and dimension
@@ -87,7 +77,7 @@ func (ws *WidgetStack) Layout(g *gocui.Gui) error {
 	ws.gview = v // set pointer to GUI View
 	v.FrameColor = gocui.ColorGreen
 	v.TitleColor = gocui.ColorGreen
-	if g.CurrentView() == nil && (len(viewOrder) == 0 || ws.name != "help-window") {
+	if g.CurrentView() == nil {
 		g.SetCurrentView(ws.name)
 	}
 
@@ -117,6 +107,11 @@ func (ws *WidgetStack) Keybinds(g *gocui.Gui) {
 	}); err != nil {
 		log.Panicln(err)
 	}
+}
+
+// Position returns position in the stack of widgets
+func (ws *WidgetStack) Position() int {
+	return ws.pos
 }
 
 // Print append a text to the widget content.
@@ -156,6 +151,30 @@ func (ws *WidgetStack) Print(str string) {
 			fmt.Fprint(ws.gview, str)
 		}
 	}
+}
+
+// SetupFun set function to run in interval in this widget
+func (ws *WidgetStack) SetupFun(cmd string) {
+	if len(cmd) == 0 {
+		return
+	}
+
+	ws.funStr = cmd
+	if strings.HasPrefix(cmd, "remote") {
+		ws.Fun = func(w Widgeter) error {
+			return cmdSSH(w, cmd)
+		}
+	} else {
+		ws.Fun = func(w Widgeter) error {
+			return cmdShell(w, cmd)
+		}
+	}
+	ws.StartFun()
+}
+
+// GetFunString return command running in this widget
+func (ws *WidgetStack) GetFunString() string {
+	return ws.funStr
 }
 
 // StartFun starts a function for the view to update it's content.

@@ -55,26 +55,8 @@ func changeView(g *gocui.Gui, v *gocui.View) error {
 		curr = v.Name()
 	}
 
-	// find next view (from the current)
-	if curr == "" {
-		// set default only when there is some
-		if len(viewOrder) > 0 {
-			next = viewOrder[0]
-		} else {
-			next = widgets[0].GetName()
-		}
-	} else {
-		for i, k := range viewOrder {
-			if k == curr {
-				if (i + 1) == len(viewOrder) {
-					next = viewOrder[0]
-				} else {
-					next = viewOrder[i+1]
-				}
-				break
-			}
-		}
-	}
+	// find next view in WidgetStack (from current)
+	next = nextWidgetStack(curr)
 	if next != "" {
 		g.SetCurrentView(next)
 	} else {
@@ -83,14 +65,27 @@ func changeView(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
-// SetDefaultView to either first one in view list or help view (if none)
+func nextWidgetStack(name string) (next string) {
+	wslist := getSortedWidgetStack()
+	nextidx := 0
+	for i, ws := range wslist {
+		if ws.GetName() == name {
+			nextidx = i + 1
+			break
+		}
+	}
+	if nextidx >= len(wslist) && len(wslist) > 0 {
+		next = wslist[0].GetName()
+	} else if len(wslist) > 0 {
+		next = wslist[nextidx].GetName()
+	}
+	return
+}
+
+// SetDefaultView to first one in WidgetStack list (if none, do not set).
 func setDefaultView(g *gocui.Gui) {
-	if len(viewOrder) > 0 {
-		// set to first view in regular layout
-		g.SetCurrentView(viewOrder[0])
-	} else {
-		// set it on Help, if no other view is there
-		g.SetCurrentView(widgets[0].GetName())
+	if wslist := getSortedWidgetStack(); len(wslist) > 0 {
+		g.SetCurrentView(wslist[0].GetName())
 	}
 }
 

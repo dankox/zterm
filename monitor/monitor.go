@@ -19,24 +19,34 @@ type Server struct {
 	User string
 }
 
+// View configuration
+type View struct {
+	Position int      `mapstructure:"position"`
+	Size     int      `mapstructure:"size"`
+	Job      string   `mapstructure:"job,omitempty"`
+	HiLine   []string `mapstructure:"hiline,omitempty"`
+	HiWord   []string `mapstructure:"hiword,omitempty"`
+}
+
 // Config type defining configuration
 type Config struct {
-	Server Server
-	Views  map[string]int
+	Server Server          `mapstructure:"server"`
+	Views  map[string]View `mapstructure:"views"`
 }
 
 var (
 	// default config with empty View map (so we don't have to do make)
 	config = Config{
 		Server{},
-		map[string]int{},
+		map[string]View{},
 	}
 
 	// widget/view parameters
-	viewOrder   []string
-	viewMaxSize = 0
-	widgets     []Widgeter
-	gui         *gocui.Gui
+	viewMaxSize  = 0
+	viewLastPos  = 0
+	viewFirstPos = -1
+	widgets      []Widgeter
+	gui          *gocui.Gui
 
 	// TUI coloring
 	// gFrameHighlight = gocui.ColorYellow
@@ -63,7 +73,6 @@ func Main() {
 	// load config file (or arguments)
 	viper.Unmarshal(&config)
 
-	// fmt.Println("starting ssh", config.Server.Host)
 	// setup ssh configuration
 	sshConfig = setupSSHConfig()
 	if sshConfig != nil {
@@ -80,13 +89,6 @@ func Main() {
 		}
 	}
 
-	// count 100% size of all the views
-	for k, v := range config.Views {
-		viewOrder = append(viewOrder, k)
-		viewMaxSize += v
-	}
-	sort.Strings(viewOrder)
-
 	// setup UI
 	g, err := gocui.NewGui(gocui.OutputNormal, true)
 	if err != nil {
@@ -94,11 +96,9 @@ func Main() {
 	}
 	defer g.Close()
 	gui = g // save pointer for use outside
-	// g.FrameColor = gocui.ColorGreen // green for mainframe like? :)
 
 	// prepare widgets
 	widgets = setupManagers()
-	// set layout manager function
 	g.SetManagerFunc(handleLayouts)
 
 	// set keybinds (after layout manager)
@@ -119,24 +119,42 @@ func Main() {
 func setupManagers() []Widgeter {
 	managers := []Widgeter{}
 
-	// add help widget first
-	managers = append(managers, NewHelpWidget())
-
 	// add configured views
-	for i, v := range viewOrder {
-		widget := NewWidgetStack(v, i, config.Views[v], fmt.Sprintf("Loading %v...", v))
-		if widget.GetName() == "1-joblog" {
-			widget.Fun = cmdTestShell
-			widget.StartFun()
-		} else if widget.GetName() == "2-syslog" {
-			widget.Fun = cmdSyslogShell
-			widget.StartFun()
+	for vname, v := range config.Views {
+		viewMaxSize += v.Size // setup view maximum size
+		// setup first view position (if nothing set before)
+		if viewFirstPos < 0 {
+			viewFirstPos = v.Position
 		}
+		widget := NewWidgetStack(vname, v.Position, v.Size, fmt.Sprintf("Loading %v...\n", vname))
+		// check if last position
+		if viewLastPos < v.Position {
+			viewLastPos = v.Position
+		}
+		// check if first position
+		if viewFirstPos > v.Position {
+			viewFirstPos = v.Position
+		}
+		// setup job for view ;)
+		widget.SetupFun(v.Job)
+		// setup highlight
+		widget.highlight = make(map[string]bool)
+		for _, hi := range v.HiWord {
+			widget.highlight[hi] = false
+		}
+		for _, hi := range v.HiLine {
+			widget.highlight[hi] = true
+		}
+
+		// add to manager list
 		managers = append(managers, widget)
 	}
+	sortWidgetManager(managers)
 
-	// add floaty widgets
-	// managers = append(managers, NewWidgetFloaty("test-window", 0, -4, -1, 3, "Window"))
+	// add help widget if there is nothing yet
+	if len(managers) == 0 {
+		managers = append(managers, NewHelpWidget())
+	}
 
 	// add console widget
 	managers = append(managers, NewWidgetConsole())
@@ -170,6 +188,13 @@ func getWidgetManager(name string) Widgeter {
 	return nil
 }
 
+// Sort WidgetStacks in Widgeter list
+func sortWidgetManager(managers []Widgeter) {
+	sort.Slice(managers, func(i, j int) bool {
+		return managers[i].Position() < managers[j].Position()
+	})
+}
+
 func getWidgetView(name string) *gocui.View {
 	for _, w := range widgets {
 		if w.GetName() == name {
@@ -201,6 +226,18 @@ func getWidgetStack(name string) *WidgetStack {
 		}
 	}
 	return nil
+}
+
+func getSortedWidgetStack() (wlist []*WidgetStack) {
+	for _, w := range widgets {
+		if ws, ok := w.(*WidgetStack); ok {
+			wlist = append(wlist, ws)
+		}
+	}
+	sort.Slice(wlist, func(i, j int) bool {
+		return wlist[i].pos < wlist[j].pos
+	})
+	return
 }
 
 // setupSSHConfig loads a public key and setup ssh config for connection

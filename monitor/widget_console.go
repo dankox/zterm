@@ -76,6 +76,7 @@ func (wc *WidgetConsole) Layout(g *gocui.Gui) error {
 		// wc.Clear()
 	}
 	wc.gview = v // set pointer to GUI View (only for view, not for input)
+	v.Wrap = true
 	// hardcoded colors for frame and title
 	v.FrameColor = gFrameOk
 	v.TitleColor = gFrameOk

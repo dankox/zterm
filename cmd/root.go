@@ -88,8 +88,7 @@ func initConfig() {
 		// Search config in current directory and if not found in home directory
 		viper.AddConfigPath(".")
 		viper.AddConfigPath(home)
-		viper.SetConfigName(".zmonitor")
-		viper.SetConfigType("ini")
+		viper.SetConfigName(".zmonitor") // should look for different extensions
 	}
 
 	viper.AutomaticEnv() // read in environment variables that match

@@ -22,6 +22,17 @@ func NewWidgetFloaty(name string, x, y int, width int, height int, body string) 
 	return &WidgetFloaty{Widget: Widget{name: name, body: body, x0: x, y0: y, width: width, height: height, Enabled: true}}
 }
 
+// NewHelpWidget creates a pop help widget for GUI
+func NewHelpWidget() *WidgetFloaty {
+	return &WidgetFloaty{Widget: Widget{name: "help-window", width: 0, height: 10, Enabled: true,
+		body: `
+  Help for zMonitor tool:
+    - CTRL+C or F10 to exit the tool
+    - ESC to invoke console (can be used to type commands)
+    - Tab to swap between windows/views
+`}}
+}
+
 // Layout setup for floaty widget
 func (wf *WidgetFloaty) Layout(g *gocui.Gui) error {
 	// do not display if disabled

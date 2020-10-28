@@ -3,24 +3,27 @@ package monitor
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/awesome-gocui/gocui"
+	"github.com/spf13/viper"
 )
 
 // autocomplete map (command with subcommands/operands)
 var cmdAuto = map[string][]string{
-	"addview": {"test-1", "test-2"},
-	"attach":  {"1-joblog", "2-syslog", "3-cmd"},
+	"addview": {"joblog", "syslog", "messages"},
+	"attach":  {"joblog", "syslog", "messages"},
 	"code":    {},
 	"error":   {},
 	"exit":    {},
 	"help":    {},
 	"remote":  {},
-	"resize":  {"1-joblog", "2-syslog", "3-cmd"},
-	"view":    {"1-joblog", "2-syslog", "3-cmd"},
+	"resize":  {"joblog", "syslog", "messages"},
+	"view":    {"joblog", "syslog", "messages"},
+	"savecfg": {},
 
 	"pwd":    {},
 	"whoami": {},
@@ -47,12 +50,19 @@ func commandExecute(wgm Widgeter, command string) error {
 		}
 
 		vname := cmdParts[1]
-		config.Views[vname] = 10
-		viewMaxSize += 10
-		viewOrder = append(viewOrder, vname)
-		// prepare widgets
-		widget := NewWidgetStack(vname, len(viewOrder)-1, 10, "new view")
+		vmap, ok := config.Views[vname]
+		if ok {
+			return fmt.Errorf("view '%s' already exist", vname)
+		}
+		vmap = View{}
+		vmap.Size = 10
+		vmap.Position = viewLastPos + 1
+		viewLastPos = vmap.Position
+		config.Views[vname] = vmap
+		viewMaxSize += vmap.Size
+		widget := NewWidgetStack(vname, vmap.Position, vmap.Size, "new view")
 		widgets = append(widgets, widget)
+		sortWidgetManager(widgets)
 		widget.Keybinds(gui)
 		// run layouts to sort the order (console on top)
 		widget.Layout(gui)
@@ -77,8 +87,10 @@ func commandExecute(wgm Widgeter, command string) error {
 
 		// resize and adjust maxsize
 		widget.height += newsize
-		viewMaxSize += widget.height - config.Views[vname]
-		config.Views[vname] = widget.height
+		vmap := config.Views[vname]
+		viewMaxSize += widget.height - vmap.Size
+		vmap.Size = widget.height
+		config.Views[vname] = vmap // is this necessary ???
 		return fmt.Errorf("view '%s' resized", vname)
 	case "view":
 		if len(cmdParts) < 3 {
@@ -135,17 +147,40 @@ config options:
 			return fmt.Errorf("attach: view '%s' doesn't exist", vname)
 		}
 		widget.StopFun()
-		if cmdParts[2] == "remote" && len(cmdParts) > 3 {
-			widget.Fun = func(w Widgeter) error {
-				return cmdSSH(w, strings.Join(cmdParts[3:], " "))
-			}
-		} else {
-			widget.Fun = func(w Widgeter) error {
-				return cmdShell(w, strings.Join(cmdParts[2:], " "))
-			}
-		}
+		widget.SetupFun(strings.Join(cmdParts[2:], " "))
 		widget.StartFun()
 		return fmt.Errorf("command attached to view '%s'", vname)
+	case "savecfg":
+		// update view configuration in viper
+		for k, v := range config.Views {
+			if ws := getWidgetStack(k); ws != nil {
+				// highlights
+				v.HiLine = []string{}
+				v.HiWord = []string{}
+				for hi, isline := range ws.highlight {
+					if isline {
+						v.HiLine = append(v.HiLine, hi)
+					} else {
+						v.HiWord = append(v.HiWord, hi)
+					}
+				}
+				// job
+				v.Job = ws.GetFunString()
+			}
+			viper.Set("views."+k, v)
+		}
+		cfgfile := viper.ConfigFileUsed()
+		data, _ := ioutil.ReadFile(cfgfile) // save for error
+		if err := viper.WriteConfig(); err != nil {
+			if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+				if err := viper.WriteConfigAs(".zmonitor.yml"); err != nil {
+					return fmt.Errorf("%v", err)
+				}
+			} else {
+				return fmt.Errorf("%v\noriginal config file: \n%v", err, string(data))
+			}
+		}
+		return fmt.Errorf("config file %v updated", cfgfile)
 	case "code":
 		// handle vscode command execution
 		if len(cmdParts) > 1 {
