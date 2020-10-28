@@ -79,6 +79,7 @@ func (wc *WidgetConsole) Layout(g *gocui.Gui) error {
 	// hardcoded colors for frame and title
 	v.FrameColor = gFrameOk
 	v.TitleColor = gFrameOk
+	v.FrameRunes = []rune{'═', '║', '╔', '╗', '╚', '╝'}
 
 	// set title
 	v.Title = fmt.Sprintf("< %v >", cmdView)

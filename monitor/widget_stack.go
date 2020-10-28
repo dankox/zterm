@@ -85,8 +85,8 @@ func (ws *WidgetStack) Layout(g *gocui.Gui) error {
 		fmt.Fprint(v, ws.body)
 	}
 	ws.gview = v // set pointer to GUI View
-	v.FrameColor = gocui.AttrBold | gocui.ColorGreen
-	v.TitleColor = gocui.AttrBold | gocui.ColorGreen
+	v.FrameColor = gocui.ColorGreen
+	v.TitleColor = gocui.ColorGreen
 	if g.CurrentView() == nil && (len(viewOrder) == 0 || ws.name != "help-window") {
 		g.SetCurrentView(ws.name)
 	}

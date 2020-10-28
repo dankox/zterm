@@ -11,4 +11,4 @@ require (
 	golang.org/x/crypto v0.0.0-20190605123033-f99c8df09eb5
 )
 
-replace github.com/awesome-gocui/gocui => github.com/dankox/gocui v0.6.1-0.20201025155232-a7e8d20a79e6
+replace github.com/awesome-gocui/gocui => github.com/dankox/gocui v0.6.1-0.20201028144745-cb1cfb0a01a1
