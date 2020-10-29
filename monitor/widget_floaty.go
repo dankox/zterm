@@ -238,9 +238,6 @@ func closeFloatyWidget(g *gocui.Gui, v *gocui.View) error {
 				if getConsoleWidget().Enabled {
 					g.SetCurrentView(cmdPrompt)
 				}
-				// return highlight colors to the default
-				g.SelFrameColor = gFrameHighlight
-				g.SelFgColor = gFrameHighlight
 			} else {
 				panic("Not a WidgetFloaty to close! Something went wrong!")
 			}

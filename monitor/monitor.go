@@ -31,6 +31,7 @@ type View struct {
 // Config type defining configuration
 type Config struct {
 	Server Server          `mapstructure:"server"`
+	Theme  map[string]int  `mapstructure:"theme"`
 	Views  map[string]View `mapstructure:"views"`
 }
 
@@ -38,6 +39,7 @@ var (
 	// default config with empty View map (so we don't have to do make)
 	config = Config{
 		Server{},
+		map[string]int{},
 		map[string]View{},
 	}
 
@@ -90,7 +92,7 @@ func Main() {
 	}
 
 	// setup UI
-	g, err := gocui.NewGui(gocui.OutputNormal, true)
+	g, err := gocui.NewGui(gocui.Output256, true)
 	if err != nil {
 		log.Panicln(err)
 	}
@@ -274,4 +276,25 @@ func setupSSHConfig() *ssh.ClientConfig {
 	}
 
 	return config
+}
+
+func colorText(text string, color string) string {
+	outputStr := "\033[38;5;"
+	// outputStr := "\033[3"
+	// outbuf.Write(strconv.AppendUint(intbuf, uint64(a-1), 10))
+	// attr := strings.Split(color, ",")
+	// bold := false
+	// col := attr[0]
+	// if attr[0] == "bold" {
+	// 	bold = true
+	// } else if (len(attr) > 1 && attr[1] == "bold") {
+	// 	bold = true
+	// }
+	// switch color {
+	// 	case ""
+	// }
+
+	outputStr += "m"
+	
+	return outputStr
 }
