@@ -1,6 +1,7 @@
 package monitor
 
 import (
+	"strings"
 	"time"
 
 	"github.com/awesome-gocui/gocui"
@@ -140,7 +141,7 @@ func connectWidgetOuput(w Widgeter, conn *RecvConn) {
 			case out, ok := <-conn.outchan:
 				output += out + "\n"
 				if !ok {
-					if len(output) > 0 {
+					if len(strings.TrimSpace(output)) > 0 {
 						if first {
 							textToView(w, output)
 							first = false
@@ -153,7 +154,8 @@ func connectWidgetOuput(w Widgeter, conn *RecvConn) {
 				}
 			case <-time.After(16 * time.Millisecond):
 				// display in FPS ~60hz
-				if len(output) > 0 {
+				if len(strings.TrimSpace(output)) > 0 {
+					// display only when there is some text
 					if first {
 						textToView(w, output)
 						first = false

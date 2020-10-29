@@ -125,7 +125,8 @@ func cmdSSH(widget Widgeter, cmd string) error {
 	go func() {
 		<-comch.signal
 		pipeW.Close()
-		session.Close()
+		session.Close() // TODO: maybe instead of close, call Signal??
+		// session.Signal(ssh.SIGINT) // or maybe ssh.SIGTERM??
 	}()
 
 	// read both stdout/stderr in from one reader
