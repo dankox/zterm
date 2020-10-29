@@ -58,6 +58,9 @@ func commandExecute(wgm Widgeter, command string) error {
 		vmap.Size = 10
 		vmap.Position = viewLastPos + 1
 		viewLastPos = vmap.Position
+		if viewFirstPos < 0 {
+			viewFirstPos = vmap.Position
+		}
 		config.Views[vname] = vmap
 		viewMaxSize += vmap.Size
 		widget := NewWidgetStack(vname, vmap.Position, vmap.Size, "new view")
