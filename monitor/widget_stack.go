@@ -159,14 +159,14 @@ func (ws *WidgetStack) SetupFun(cmd string) {
 		return
 	}
 
-	ws.funStr = cmd
-	if strings.HasPrefix(cmd, "remote") {
+	ws.funStr = strings.TrimSpace(cmd)
+	if strings.HasPrefix(ws.funStr, "remote") {
 		ws.Fun = func(w Widgeter) error {
-			return cmdSSH(w, cmd)
+			return cmdSSH(w, strings.TrimPrefix(ws.funStr, "remote"))
 		}
 	} else {
 		ws.Fun = func(w Widgeter) error {
-			return cmdShell(w, cmd)
+			return cmdShell(w, ws.funStr)
 		}
 	}
 	ws.StartFun()
