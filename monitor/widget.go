@@ -125,8 +125,6 @@ func (w *Widget) Print(str string) {
 func (w *Widget) Error(err error) {
 	if w.gview != nil {
 		w.gview.Autoscroll = true
-		fmt.Fprintf(w.gview, "\x1b[31;1merror: \x1b[0m%v\n", err.Error())
-		// g.SelFrameColor = gFrameError // ??
-		// g.SelFgColor = gFrameError
+		fmt.Fprintln(w.gview, colorText("error:", cErrorStr), err.Error())
 	}
 }

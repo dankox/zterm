@@ -6,9 +6,11 @@ import (
 	"log"
 	"os/user"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/awesome-gocui/gocui"
+	"github.com/muesli/termenv"
 	"github.com/spf13/viper"
 	"golang.org/x/crypto/ssh"
 )
@@ -56,6 +58,12 @@ var (
 	gFrameOk        = gocui.ColorCyan
 	gFrameError     = gocui.ColorRed
 	gFrameColor     = gocui.ColorDefault
+	cConsole        = gocui.ColorCyan
+	cConsoleStr     = strconv.Itoa(int(cConsole) - 1)
+	cError          = gocui.ColorRed
+	cErrorStr       = strconv.Itoa(int(cError) - 1)
+	cHighlight      = gocui.ColorMagenta
+	cHighlightStr   = strconv.Itoa(int(cHighlight) - 1)
 
 	// ssh parameters
 	sshConfig *ssh.ClientConfig
@@ -279,7 +287,9 @@ func setupSSHConfig() *ssh.ClientConfig {
 }
 
 func colorText(text string, color string) string {
-	outputStr := "\033[38;5;"
+	// outputStr := "\033[38;5;"
+	p := termenv.ColorProfile()
+	return termenv.String(text).Foreground(p.Color(color)).String()
 	// outputStr := "\033[3"
 	// outbuf.Write(strconv.AppendUint(intbuf, uint64(a-1), 10))
 	// attr := strings.Split(color, ",")
@@ -293,8 +303,6 @@ func colorText(text string, color string) string {
 	// switch color {
 	// 	case ""
 	// }
-
-	outputStr += "m"
-	
-	return outputStr
+	// outputStr += "m"
+	// return outputStr
 }

@@ -23,7 +23,7 @@ var (
 	cmdPrompt     = "console-prompt"
 	cmdPromptPS1  = "console-prompt-ps1"
 	consoleHeight = 3
-	promptPS1     = "\x1b[36;2m>>\x1b[0m "
+	promptPS1     = colorText(">>", cConsoleStr)
 )
 
 // NewWidgetConsole creates a widget for GUI which doesn't contribute to the layout.
@@ -128,7 +128,7 @@ func (wc *WidgetConsole) Clear() {
 // Error print error message to the console output line (second line below prompt)
 func (wc *WidgetConsole) Error(err error) {
 	wc.gview.Autoscroll = true
-	fmt.Fprintf(wc.gview, "\x1b[31;1merror: \x1b[0m%v\n\n", err.Error())
+	fmt.Fprintf(wc.gview, "%v %v\n\n", colorText("error:", cErrorStr), err.Error())
 }
 
 // Print message to the console output line

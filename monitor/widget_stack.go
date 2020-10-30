@@ -20,9 +20,6 @@ type WidgetStack struct {
 	highlight map[string]bool
 }
 
-var hiColor = "\x1b[35;2m"
-var resAnsi = "\x1b[0m"
-
 // NewWidgetStack creates a widget for stack GUI
 func NewWidgetStack(name string, pos int, height int, body string) *WidgetStack {
 	return &WidgetStack{Widget: Widget{name: name, body: body, width: 0, height: height, Enabled: true}, pos: pos,
@@ -131,12 +128,12 @@ func (ws *WidgetStack) Print(str string) {
 					if strings.Contains(line, sub) {
 						if hiLine {
 							// highlight full line
-							fmt.Fprintf(ws.gview, "%s%s%s\n", hiColor, line, resAnsi)
+							fmt.Fprintln(ws.gview, colorText(line, cHighlightStr))
 							written = true
 							break
 						}
 						// highlight word only
-						fmt.Fprintln(ws.gview, strings.ReplaceAll(line, sub, hiColor+sub+resAnsi))
+						fmt.Fprintln(ws.gview, strings.ReplaceAll(line, sub, colorText(sub, cHighlightStr)))
 						written = true
 						break
 					}
