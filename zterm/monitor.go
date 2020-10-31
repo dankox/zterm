@@ -1,9 +1,11 @@
-package monitor
+package zterm
 
 import (
+	"bufio"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
 	"os/user"
 	"sort"
 	"time"
@@ -54,7 +56,7 @@ var (
 	sshConn *ssh.Client
 )
 
-// Main function of monitor package
+// Main function of zterm package
 //
 // - setup GUI for TUI (terminal user interface)
 //
@@ -259,10 +261,10 @@ func initSSHConnection() *ssh.Client {
 func sshConnect(signer ssh.Signer) (*ssh.Client, error) {
 	auth := []ssh.AuthMethod{}
 	if signer == nil {
-		var pass string
+		reader := bufio.NewReader(os.Stdin)
 		fmt.Print("Password: ")
-		fmt.Scanf("%s\n", &pass)
-		auth = []ssh.AuthMethod{ssh.Password(pass)}
+		pass, _, _ := reader.ReadLine()
+		auth = []ssh.AuthMethod{ssh.Password(string(pass))}
 	} else {
 		auth = []ssh.AuthMethod{ssh.PublicKeys(signer)}
 	}

@@ -1,4 +1,4 @@
-module github.com/dankox/zmonitor-go
+module github.com/dankox/zterm
 
 go 1.15
 

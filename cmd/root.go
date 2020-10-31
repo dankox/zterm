@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/dankox/zmonitor-go/monitor"
+	"github.com/dankox/zterm/zterm"
 
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
@@ -21,13 +21,13 @@ var (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "zmonitor-go",
-	Short: "Monitoring tool for z/OS systems",
-	Long: `zMonitor is a TUI monitoring tool for z/OS systems.
+	Use:   "zterm",
+	Short: "Terminal application for managing remote apps",
+	Long: `zTerm is terminal app to manage applications run on SSH server with z/OS mainframe builtin support (ussing USS).
 
-Displays system logs, jobs, activity and user defined commands in semi-online
-mode, which refreshes data obtained from the remote system in intervals.
-This way user has live representation of the activity on z/OS system.
+Executes applications like system logs, jobs, activity and user defined commands 
+in semi-online mode, which refreshes data obtained from the remote system in intervals.
+This way user has live representation of the activity on local or remote system, or z/OS system.
 (Access to the systems is done thru ssh protocol.)`,
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) > 0 {
@@ -36,7 +36,7 @@ This way user has live representation of the activity on z/OS system.
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		monitor.Main()
+		zterm.Main()
 	},
 }
 
@@ -55,7 +55,7 @@ func init() {
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ./.zmonitor or ~/.zmonitor)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ./.zterm.yml or ~/.zterm.yml)")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
@@ -88,7 +88,7 @@ func initConfig() {
 		// Search config in current directory and if not found in home directory
 		viper.AddConfigPath(".")
 		viper.AddConfigPath(home)
-		viper.SetConfigName(".zmonitor") // should look for different extensions
+		viper.SetConfigName(".zterm") // should look for different extensions
 	}
 
 	viper.AutomaticEnv() // read in environment variables that match

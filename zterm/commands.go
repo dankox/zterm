@@ -1,4 +1,4 @@
-package monitor
+package zterm
 
 import (
 	"errors"
@@ -176,7 +176,7 @@ config options:
 		data, _ := ioutil.ReadFile(cfgfile) // save for error
 		if err := viper.WriteConfig(); err != nil {
 			if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-				if err := viper.WriteConfigAs(".zmonitor.yml"); err != nil {
+				if err := viper.WriteConfigAs(".zterm.yml"); err != nil {
 					return fmt.Errorf("%v", err)
 				}
 			} else {

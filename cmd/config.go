@@ -57,8 +57,8 @@ func writeConfig() {
 		// Search config in current directory and if not found in home directory
 		viper.AddConfigPath(".")
 		viper.AddConfigPath(home)
-		viper.SetConfigName(".zmonitor")
-		viper.SetConfigType("toml")
+		viper.SetConfigName(".zterm")
+		viper.SetConfigType("yaml")
 	}
 
 	viper.AutomaticEnv() // read in environment variables that match

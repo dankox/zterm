@@ -21,7 +21,7 @@ THE SOFTWARE.
 */
 package main
 
-import "github.com/dankox/zmonitor-go/cmd"
+import "github.com/dankox/zterm/cmd"
 
 func main() {
 	cmd.Execute()
