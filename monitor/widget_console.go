@@ -23,7 +23,7 @@ var (
 	cmdPrompt     = "console-prompt"
 	cmdPromptPS1  = "console-prompt-ps1"
 	consoleHeight = 3
-	promptPS1     = colorText(">>", cConsoleStr)
+	promptPS1     = colorText(">> ", cConsoleStr)
 )
 
 // NewWidgetConsole creates a widget for GUI which doesn't contribute to the layout.
@@ -78,8 +78,8 @@ func (wc *WidgetConsole) Layout(g *gocui.Gui) error {
 	wc.gview = v // set pointer to GUI View (only for view, not for input)
 	v.Wrap = true
 	// hardcoded colors for frame and title
-	v.FrameColor = gFrameOk
-	v.TitleColor = gFrameOk
+	v.FrameColor = cConsole
+	v.TitleColor = cConsole
 	v.FrameRunes = []rune{'═', '║', '╔', '╗', '╚', '╝'}
 
 	// set title

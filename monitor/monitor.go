@@ -6,11 +6,9 @@ import (
 	"log"
 	"os/user"
 	"sort"
-	"strconv"
 	"time"
 
 	"github.com/awesome-gocui/gocui"
-	"github.com/muesli/termenv"
 	"github.com/spf13/viper"
 	"golang.org/x/crypto/ssh"
 )
@@ -52,22 +50,8 @@ var (
 	widgets      []Widgeter
 	gui          *gocui.Gui
 
-	// TUI coloring
-	// gFrameHighlight = gocui.ColorYellow
-	gFrameHighlight = gocui.ColorDefault
-	gFrameOk        = gocui.ColorCyan
-	gFrameError     = gocui.ColorRed
-	gFrameColor     = gocui.ColorDefault
-	cConsole        = gocui.ColorCyan
-	cConsoleStr     = strconv.Itoa(int(cConsole) - 1)
-	cError          = gocui.ColorRed
-	cErrorStr       = strconv.Itoa(int(cError) - 1)
-	cHighlight      = gocui.ColorMagenta
-	cHighlightStr   = strconv.Itoa(int(cHighlight) - 1)
-
-	// ssh parameters
-	sshConfig *ssh.ClientConfig
-	sshConn   *ssh.Client
+	// ssh connection
+	sshConn *ssh.Client
 )
 
 // Main function of monitor package
@@ -84,20 +68,7 @@ func Main() {
 	viper.Unmarshal(&config)
 
 	// setup ssh configuration
-	sshConfig = setupSSHConfig()
-	if sshConfig != nil {
-		// fmt.Printf("config ssh: %v", sshConfig)
-		hostport := fmt.Sprintf("%s:%d", config.Server.Host, 22)
-		// fmt.Printf("ssh host: %v", hostport)
-		conn, err := ssh.Dial("tcp", hostport, sshConfig)
-		if err != nil {
-			fmt.Printf("cannot connect %v: %v\n", hostport, err)
-		} else {
-			sshConn = conn
-			// fmt.Println("connected to ssh as", config.Server.User)
-			defer sshConn.Close()
-		}
-	}
+	sshConn = initSSHConnection()
 
 	// setup UI
 	g, err := gocui.NewGui(gocui.Output256, true)
@@ -255,54 +226,54 @@ func getSortedWidgetStack() (wlist []*WidgetStack) {
 	return
 }
 
-// setupSSHConfig loads a public key and setup ssh config for connection
-func setupSSHConfig() *ssh.ClientConfig {
+// initSSHConnection loads a public key and setup ssh config for connection
+func initSSHConnection() *ssh.Client {
 	usr, err := user.Current()
 	if err != nil {
 		return nil
 	}
 	keyfile := usr.HomeDir + "/.ssh/id_rsa"
-	fmt.Printf("read file %v\n", keyfile)
 
+	var signer ssh.Signer
 	key, err := ioutil.ReadFile(keyfile)
-	if err != nil {
-		fmt.Println(err)
-		return nil
-	}
-	signer, err := ssh.ParsePrivateKey(key)
-	if err != nil {
-		fmt.Println(err)
-		return nil
+	if err == nil {
+		signer, err = ssh.ParsePrivateKey(key)
 	}
 
-	authkey := ssh.PublicKeys(signer)
-	config := &ssh.ClientConfig{
+	tries := 2
+	for {
+		conn, err := sshConnect(signer)
+		if err == nil {
+			return conn
+		} else if signer != nil || tries < 1 {
+			fmt.Println(err)
+			return nil
+		}
+		fmt.Println(err)
+		tries--
+	}
+}
+
+// sshConnect tries to connect to ssh server with provided authkey/signer,
+// or request password if signer is nil.
+func sshConnect(signer ssh.Signer) (*ssh.Client, error) {
+	auth := []ssh.AuthMethod{}
+	if signer == nil {
+		var pass string
+		fmt.Print("Password: ")
+		fmt.Scanf("%s\n", &pass)
+		auth = []ssh.AuthMethod{ssh.Password(pass)}
+	} else {
+		auth = []ssh.AuthMethod{ssh.PublicKeys(signer)}
+	}
+	sshConfig := &ssh.ClientConfig{
 		User:            config.Server.User,
-		Auth:            []ssh.AuthMethod{authkey},
+		Auth:            auth,
 		Timeout:         5 * time.Second,
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
-	return config
-}
-
-func colorText(text string, color string) string {
-	// outputStr := "\033[38;5;"
-	p := termenv.ColorProfile()
-	return termenv.String(text).Foreground(p.Color(color)).String()
-	// outputStr := "\033[3"
-	// outbuf.Write(strconv.AppendUint(intbuf, uint64(a-1), 10))
-	// attr := strings.Split(color, ",")
-	// bold := false
-	// col := attr[0]
-	// if attr[0] == "bold" {
-	// 	bold = true
-	// } else if (len(attr) > 1 && attr[1] == "bold") {
-	// 	bold = true
-	// }
-	// switch color {
-	// 	case ""
-	// }
-	// outputStr += "m"
-	// return outputStr
+	hostport := fmt.Sprintf("%s:%d", config.Server.Host, 22)
+	conn, err := ssh.Dial("tcp", hostport, sshConfig)
+	return conn, err
 }

@@ -72,16 +72,17 @@ func (ws *WidgetStack) Layout(g *gocui.Gui) error {
 		fmt.Fprint(v, ws.body)
 	}
 	ws.gview = v // set pointer to GUI View
-	v.FrameColor = gocui.ColorGreen
-	v.TitleColor = gocui.ColorGreen
+	v.FrameColor = cFrame
 	if g.CurrentView() == nil {
 		g.SetCurrentView(ws.name)
 	}
 
 	// set title
 	if g.CurrentView() == v {
+		v.TitleColor = cFrameSel
 		v.Title = fmt.Sprintf("[ %v ]", ws.name)
 	} else {
+		v.TitleColor = cFrame
 		v.Title = fmt.Sprintf("| %v |", ws.name)
 	}
 	v.Autoscroll = true
