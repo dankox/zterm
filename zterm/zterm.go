@@ -32,8 +32,8 @@ type View struct {
 
 // Config type defining configuration
 type Config struct {
-	Server Server          `mapstructure:"server"`
-	Theme  map[string]int  `mapstructure:"theme"`
+	Server `mapstructure:"server"`
+	Theme  `mapstructure:"theme"`
 	Views  map[string]View `mapstructure:"views"`
 }
 
@@ -41,7 +41,7 @@ var (
 	// default config with empty View map (so we don't have to do make)
 	config = Config{
 		Server{},
-		map[string]int{},
+		Theme{},
 		map[string]View{},
 	}
 
@@ -68,6 +68,9 @@ var (
 func Main() {
 	// load config file (or arguments)
 	viper.Unmarshal(&config)
+
+	// load theme from config
+	LoadTheme()
 
 	// setup ssh configuration
 	sshConn = initSSHConnection()
