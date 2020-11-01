@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net"
 	"os"
 	"os/user"
 	"sort"
@@ -65,15 +66,17 @@ var (
 // - set keybindings
 //
 // - run GUI.MainLoop
-func Main() {
+func Main(remote bool) {
 	// load config file (or arguments)
 	viper.Unmarshal(&config)
 
 	// load theme from config
 	LoadTheme()
 
-	// setup ssh configuration
-	sshConn = initSSHConnection()
+	if remote {
+		// setup ssh configuration
+		sshConn = initSSHConnection()
+	}
 
 	// setup UI
 	g, err := gocui.NewGui(gocui.Output256, true)
@@ -252,6 +255,10 @@ func initSSHConnection() *ssh.Client {
 			return conn
 		} else if signer != nil || tries < 1 {
 			fmt.Println(err)
+			return nil
+		}
+		if _, ok := err.(*net.OpError); ok {
+			fmt.Println("cannot connect to remote server")
 			return nil
 		}
 		fmt.Println(err)

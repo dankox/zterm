@@ -16,7 +16,8 @@ import (
 )
 
 var (
-	cfgFile string
+	cfgFile  string
+	noRemote bool
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -36,7 +37,7 @@ This way user has live representation of the activity on local or remote system,
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		zterm.Main()
+		zterm.Main(!noRemote)
 	},
 }
 
@@ -66,7 +67,9 @@ func init() {
 	rootCmd.Flags().String("user", "", "user name used to connect to the remote server")
 	viper.BindPFlag("server.user", rootCmd.Flags().Lookup("user"))
 
-	rootCmd.Flags().IntP("refresh-interval", "r", 5, "refresh interval in seconds used to get new data (default: 5s)")
+	rootCmd.Flags().BoolVar(&noRemote, "no-remote", false, "do not connect to remote server")
+
+	rootCmd.Flags().Int("refresh-interval", 5, "refresh interval in seconds used to get new data (default: 5s)")
 	viper.BindPFlag("server.refresh", rootCmd.Flags().Lookup("refresh-interval"))
 
 	rootCmd.AddCommand(configCmd)
