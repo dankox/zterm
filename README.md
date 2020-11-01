@@ -15,12 +15,12 @@ zTerm is full terminal application where you can run multiple commands at once e
 These commands are run in seperated containers called views. Each view has a refresh interval which is used to re-run the command specified for it.    
 
 For example, user can have view where `ps -a` would run and another view where `remote tail localhost.log` would run.    
-By default refresh interval is 5s, so every five seconds `ps -a` would be executed on local PC and output displayed in the first view and
-`tail localhost.log` would be executed on remote server and its output would be displayed in the second view.
+By default refresh interval is 5s, so every five seconds `ps -a` would be executed on local PC and output displayed in the first view, 
+and `tail localhost.log` would be executed on remote server and its output would be displayed in the second view.
 
-This allows to execute multiple different commands which output is change in time and monitor them (as in the example with log file).
+This allows to execute multiple different commands where output is changed in time and monitor them (as in the example with log file).
 
-Views are stack on each other from top to bottom. Top view has the smallest position number (e.g.: 1), while bottom view has the biggest position number.
+Views are stacked on each other from top to bottom. Top view has the smallest position number (e.g.: 1), while bottom view has the largest position number.
 Position number can be changed in configuration file.
 
 zTerm has builtin console, where user can configure what should be displayed in views and highlight specific words or lines.    
@@ -107,7 +107,7 @@ theme:
 There are 3 color spaces available
 1. basic - allows colors from 0 - 15 from ANSI256 colors which are translated into 30-37 (foreground ansi) and the high-intensity colors (8-15) get `faint` parameter (`\x1b[2m`)
 2. ansi256 - allows colors from ANSI256 space, which is 0 - 255 (where 0-15 basic colors, 16 - 231 ansi colors, 232 - 255 grayscale colors)
-3. truecolor - allows 24bit colors (if your terminal it). 
+3. truecolor - allows 24bit colors (if your terminal supports it). 
 
 All the colors can be specified either by ANSI color code (0-255) or by hex values ("#RRGGBB") or by name recognizable by [colornames](https://godoc.org/golang.org/x/image/colornames) golang package.     
 Colors can be specified by hex values or color names even for `basic` or `ansi256` color space. Theme namanger will try to convert them in best possible way to correspond to the color allowed in specified color space. The same applies other way around (from `basic` to `truecolor`).
@@ -136,4 +136,4 @@ Command | Description
 `remote` | Run command on server (if connected to server).<br>Usage: `remote <command>`
 `resize` | Resize view by specific number. Negative number shrink view, while positive enlarge view.<br>Usage: `resize <view-name> <number>`
 `savecfg` | Save current zTerm application setup into configuration file. It saves view setup and connection setup.
-`view` | Configure specified view. Current configuration commands are `hi-line`, `hi-word` for highlighting output in the view and `hi-remove` for removing highlight.<br>Usage: `view <view-name> [hi-line|hi-word|hi-remove] [arg]`
+`view` | Configure specified view. Current configuration commands are `hi-line`, `hi-word` for highlighting output in the view and `hi-remove` for removing highlight.<br>Usage: `view <view-name> [hi-line\|hi-word\|hi-remove] [arg]`
