@@ -90,9 +90,10 @@ func StringAttributeAnsi(col string) (gocui.Attribute, termenv.Color, error) {
 	if pcol == nil {
 		// look for color names
 		if c, ok := colornames.Map[col]; ok {
-			pcol = p.Color(fmt.Sprintf("#%.2x%.2x%.2x", c.R, c.G, c.B))
+			col = fmt.Sprintf("#%.2x%.2x%.2x", c.R, c.G, c.B)
+			pcol = p.Color(col)
 		} else {
-			return 0, nil, errors.New("cannot convert color") // this will keep the default
+			return 0, nil, errors.New("cannot find color name") // this will keep the default
 		}
 	}
 

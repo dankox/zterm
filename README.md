@@ -112,6 +112,8 @@ There are 3 color spaces available
 All the colors can be specified either by ANSI color code (0-255) or by hex values ("#RRGGBB") or by name recognizable by [colornames](https://godoc.org/golang.org/x/image/colornames) golang package.     
 Colors can be specified by hex values or color names even for `basic` or `ansi256` color space. Theme namanger will try to convert them in best possible way to correspond to the color allowed in specified color space. The same applies other way around (from `basic` to `truecolor`).
 
+*Note: Windows platform supports only basic color scheme (16 colors). Any other color scheme would downgrade to 8 colors. This is due to how `termbox-go` is written for Windows systems (converts all colors with simple 8 color table).*
+
 ## Keybindings
 
 Keybind | Description
