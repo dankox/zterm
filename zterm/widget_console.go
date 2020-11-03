@@ -29,6 +29,7 @@ var (
 // NewWidgetConsole creates a widget for GUI which doesn't contribute to the layout.
 // This type of widget is displayed on top over the layout.
 func NewWidgetConsole() *WidgetConsole {
+	promptPS1 = colorText(">> ", cConsoleStr) // reload color (from theme)
 	return &WidgetConsole{Widget: Widget{name: cmdView, Enabled: false}}
 }
 
