@@ -39,6 +39,7 @@ Help for zMonitor tool:
 func (wf *WidgetFloaty) Layout(g *gocui.Gui) error {
 	// do not display if disabled
 	if !wf.Enabled {
+		g.DeleteKeybindings(wf.name)
 		g.DeleteView(wf.name) // if doesn't exist, don't care
 		wf.gview = nil
 		// check if current view was pointing to this view before (just to be sure!)
