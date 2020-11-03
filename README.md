@@ -109,7 +109,7 @@ theme:
 There are 3 color spaces available
 1. basic - allows colors from 0 - 15 from ANSI256 colors which are translated into 30-37 (foreground ansi) and the high-intensity colors (8-15) get `faint` parameter (`\x1b[2m`)
 2. ansi256 - allows colors from ANSI256 space, which is 0 - 255 (where 0-15 basic colors, 16 - 231 ansi colors, 232 - 255 grayscale colors)
-3. truecolor - allows 24bit colors (if your terminal supports it). 
+3. truecolor - allows 24bit colors. **NOT SUPPORTED YET** - need tcell instead of termbox-go
 
 All the colors can be specified either by ANSI color code (0-255) or by hex values ("#RRGGBB") or by name specified in [colornames](https://godoc.org/golang.org/x/image/colornames) golang package.     
 Colors can be specified by hex values or color names even for `basic` or `ansi256` color space. Theme namanger will try to convert them in best possible way to correspond to the color allowed in specified color space. The same applies other way around (from `basic` to `truecolor`).

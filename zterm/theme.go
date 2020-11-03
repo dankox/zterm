@@ -125,11 +125,12 @@ func StringAttributeAnsi(col string) (gocui.Attribute, termenv.Color, error) {
 
 	case termenv.RGBColor:
 		if npcol := termenv.ANSI256.Color(col); npcol != nil {
+			// TrueColor not supported => returns `nv` instead of `v`
 			switch nv := npcol.(type) {
 			case termenv.ANSIColor:
-				return gocui.Attribute(nv + 1), v, nil
+				return gocui.Attribute(nv + 1), nv, nil
 			case termenv.ANSI256Color:
-				return gocui.Attribute(nv + 1), v, nil
+				return gocui.Attribute(nv + 1), nv, nil
 			}
 		}
 	}
@@ -147,7 +148,9 @@ func ColorProfile() termenv.Profile {
 	case "ansi256":
 		p = termenv.ANSI256
 	case "truecolor":
-		p = termenv.TrueColor
+		// TODO: truecolor support - needs to implement thru tcell
+		// p = termenv.TrueColor
+		p = termenv.ANSI256
 	}
 	return p
 }
