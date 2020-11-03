@@ -97,11 +97,13 @@ theme:
 # color-space can have values basic, ansi256, truecolor
   color-space: basic
 # all following keywords have color as a value
-  console: 6
-  error: red
-  frame: 2
-  frame-select: 3
-  highlight: magenta
+  fgcolor: 251          # foreground color - color of the text written
+  bgcolor: 235          # background color - color of the background
+  console: 6            # console color - color of the console frame and prompt
+  error: red            # error color - errors are print with this color
+  frame: lime           # frame color - color of the views frame (border) 
+  frame-select: 3       # selected frame color - selected frame's title is printed with this color
+  highlight: "#00afd7"  # highlight color - color of highlighted output specified in config or by command
 ```
 
 There are 3 color spaces available
@@ -109,7 +111,7 @@ There are 3 color spaces available
 2. ansi256 - allows colors from ANSI256 space, which is 0 - 255 (where 0-15 basic colors, 16 - 231 ansi colors, 232 - 255 grayscale colors)
 3. truecolor - allows 24bit colors (if your terminal supports it). 
 
-All the colors can be specified either by ANSI color code (0-255) or by hex values ("#RRGGBB") or by name recognizable by [colornames](https://godoc.org/golang.org/x/image/colornames) golang package.     
+All the colors can be specified either by ANSI color code (0-255) or by hex values ("#RRGGBB") or by name specified in [colornames](https://godoc.org/golang.org/x/image/colornames) golang package.     
 Colors can be specified by hex values or color names even for `basic` or `ansi256` color space. Theme namanger will try to convert them in best possible way to correspond to the color allowed in specified color space. The same applies other way around (from `basic` to `truecolor`).
 
 *Note: Windows platform supports only basic color scheme (16 colors). Any other color scheme would downgrade to 8 colors. This is due to how `termbox-go` is written for Windows systems (converts all colors with simple 8 color table).*

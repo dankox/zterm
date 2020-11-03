@@ -12,6 +12,8 @@ import (
 
 var (
 	// TUI coloring
+	cFgColor, cFgColorStr     = gocui.ColorDefault, termenv.ForegroundColor()
+	cBgColor, cBgColorStr     = gocui.ColorDefault, termenv.BackgroundColor()
 	cFrame, cFrameStr         = AttributeAnsi(gocui.ColorGreen)
 	cFrameSel, cFrameSelStr   = AttributeAnsi(gocui.ColorYellow)
 	cConsole, cConsoleStr     = AttributeAnsi(gocui.ColorCyan)
@@ -48,6 +50,8 @@ func (c BasicColor) Sequence(bg bool) string {
 // Theme configuration
 type Theme struct {
 	ColorSpace string `mapstructure:"color-space"`
+	FgColor    string `mapstructure:"fgcolor"`
+	BgColor    string `mapstructure:"bgcolor"`
 	Frame      string `mapstructure:"frame"`
 	FrameSel   string `mapstructure:"frame-select"`
 	Console    string `mapstructure:"console"`
@@ -57,10 +61,15 @@ type Theme struct {
 
 // LoadTheme loads theme specified in config file.
 func LoadTheme() {
+	if a, c, e := StringAttributeAnsi(config.Theme.FgColor); e == nil {
+		cFgColor, cFgColorStr = a, c
+	}
+	if a, c, e := StringAttributeAnsi(config.Theme.BgColor); e == nil {
+		cBgColor, cBgColorStr = a, c
+	}
 	if a, c, e := StringAttributeAnsi(config.Theme.Frame); e == nil {
 		cFrame, cFrameStr = a, c
 	}
-	// cFrame = gocui.ColorGreen | gocui.AttrBold
 	if a, c, e := StringAttributeAnsi(config.Theme.FrameSel); e == nil {
 		cFrameSel, cFrameSelStr = a, c
 	}
@@ -82,6 +91,9 @@ func AttributeAnsi(col gocui.Attribute) (gocui.Attribute, termenv.Color) {
 
 // StringAttributeAnsi converts string to gocui.Attribute and returns both of them
 func StringAttributeAnsi(col string) (gocui.Attribute, termenv.Color, error) {
+	if len(col) == 0 {
+		return 0, nil, errors.New("no color specified")
+	}
 	p := ColorProfile()
 	if p == termenv.Ascii {
 		return 0, nil, errors.New("ascii profile, nothing to convert")

@@ -85,6 +85,8 @@ func Main(remote bool) {
 	}
 	defer g.Close()
 	gui = g // save pointer for use outside
+	g.FgColor = cFgColor
+	g.BgColor = cBgColor
 
 	// prepare widgets
 	widgets = setupManagers()
