@@ -254,7 +254,7 @@ func changeRefresh(g *gocui.Gui, v *gocui.View) error {
 		}
 		ws.StartFun()
 		// add notification pop-up
-		if wf, err := addSimplePopupWidget("refresh-popup", gocui.ColorYellow, ws.x0+1, ws.y1-4, ws.x1-2, 3,
+		if wf, err := addSimplePopupWidget("refresh-popup", cPopup, ws.x0+1, ws.y1-4, ws.x1-2, 3,
 			fmt.Sprintf("refresh interval changed to %v", ws.refresh)); err == nil {
 			// with CtrlR keybind to refresh THIS view (widget, not widget-floaty)
 			g.DeleteKeybinding(wf.name, gocui.KeyCtrlR, gocui.ModNone) // don't care about errors (just to not duplicate it)

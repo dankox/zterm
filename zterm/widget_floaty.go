@@ -24,7 +24,7 @@ func NewWidgetFloaty(name string, x, y int, width int, height int, body string) 
 
 // PopupHelpWidget creates a pop help widget for GUI
 func PopupHelpWidget() *WidgetFloaty {
-	wf, err := addSimplePopupWidget("help-window", gocui.ColorYellow, 0, 0, 0, 10, `
+	wf, err := addSimplePopupWidget("help-window", cPopup, 0, 0, 0, 10, `
 Help for zMonitor tool:
 	- CTRL+C or F10 to exit the tool
 	- ESC to invoke console (can be used to type commands)

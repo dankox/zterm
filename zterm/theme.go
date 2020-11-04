@@ -17,6 +17,7 @@ var (
 	cFrame, cFrameStr         = AttributeAnsi(gocui.ColorGreen)
 	cFrameSel, cFrameSelStr   = AttributeAnsi(gocui.ColorYellow)
 	cConsole, cConsoleStr     = AttributeAnsi(gocui.ColorCyan)
+	cPopup, cPopupStr         = AttributeAnsi(gocui.ColorYellow)
 	cError, cErrorStr         = AttributeAnsi(gocui.ColorRed)
 	cHighlight, cHighlightStr = AttributeAnsi(gocui.ColorMagenta)
 
@@ -55,6 +56,7 @@ type Theme struct {
 	Frame      string `mapstructure:"frame"`
 	FrameSel   string `mapstructure:"frame-select"`
 	Console    string `mapstructure:"console"`
+	Popup      string `mapstructure:"popup"`
 	Error      string `mapstructure:"error"`
 	Highlight  string `mapstructure:"highlight"`
 }
@@ -75,6 +77,9 @@ func LoadTheme() {
 	}
 	if a, c, e := StringAttributeAnsi(config.Theme.Console); e == nil {
 		cConsole, cConsoleStr = a, c
+	}
+	if a, c, e := StringAttributeAnsi(config.Theme.Popup); e == nil {
+		cPopup, cPopupStr = a, c
 	}
 	if a, c, e := StringAttributeAnsi(config.Theme.Error); e == nil {
 		cError, cErrorStr = a, c

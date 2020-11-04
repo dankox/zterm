@@ -100,6 +100,7 @@ theme:
   fgcolor: 251          # foreground color - color of the text written
   bgcolor: 235          # background color - color of the background
   console: 6            # console color - color of the console frame and prompt
+  popup: yellow         # popup window color - color of popup windows (mostly notification windows)
   error: red            # error color - errors are print with this color
   frame: lime           # frame color - color of the views frame (border) 
   frame-select: 3       # selected frame color - selected frame's title is printed with this color
