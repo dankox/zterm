@@ -91,7 +91,7 @@ func LoadTheme() {
 
 // AttributeAnsi converts gocui.Attribute to ANSI color and returns both of them
 func AttributeAnsi(col gocui.Attribute) (gocui.Attribute, termenv.Color) {
-	return col, termenv.ANSI.Color(strconv.Itoa(int(col) - 1))
+	return col, termenv.ANSI.Color(strconv.Itoa(int(col &^ gocui.AttrIsValidColor)))
 }
 
 // StringAttributeAnsi converts string to gocui.Attribute and returns both of them
@@ -119,25 +119,17 @@ func StringAttributeAnsi(col string) (gocui.Attribute, termenv.Color, error) {
 		if colorBasic {
 			bv := BasicColor(v)
 			if bv > 7 {
-				return gocui.Attribute(v-7) | gocui.AttrBold, bv, nil
+				return gocui.Get256Color(int32(v)) | gocui.AttrBold, bv, nil
 			}
-			return gocui.Attribute(v + 1), bv, nil
+			return gocui.Get256Color(int32(v)), bv, nil
 		}
-		return gocui.Attribute(v + 1), v, nil
+		return gocui.Get256Color(int32(v)), v, nil
 
 	case termenv.ANSI256Color:
-		return gocui.Attribute(v + 1), v, nil
+		return gocui.Get256Color(int32(v)), v, nil
 
 	case termenv.RGBColor:
-		if npcol := termenv.ANSI256.Color(col); npcol != nil {
-			// TrueColor not supported => returns `nv` instead of `v`
-			switch nv := npcol.(type) {
-			case termenv.ANSIColor:
-				return gocui.Attribute(nv + 1), nv, nil
-			case termenv.ANSI256Color:
-				return gocui.Attribute(nv + 1), nv, nil
-			}
-		}
+		return gocui.GetColor(string(v)), v, nil
 	}
 
 	return 0, nil, errors.New("cannot convert color") // this will keep the default
@@ -153,9 +145,7 @@ func ColorProfile() termenv.Profile {
 	case "ansi256":
 		p = termenv.ANSI256
 	case "truecolor":
-		// TODO: truecolor support - needs to implement thru tcell
-		// p = termenv.TrueColor
-		p = termenv.ANSI256
+		p = termenv.TrueColor
 	}
 	return p
 }

@@ -78,6 +78,11 @@ func Main(remote bool) {
 		sshConn = initSSHConnection()
 	}
 
+	// For Windows 7 or other non-compatible stuff
+	// This is how in `tcell/v2` we can bypass scrolling problem
+	if config.ColorSpace == "basic" {
+		os.Setenv("TCELL_TRUECOLOR", "disable")
+	}
 	// setup UI
 	g, err := gocui.NewGui(gocui.Output256, true)
 	if err != nil {
