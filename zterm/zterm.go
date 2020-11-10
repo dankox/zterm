@@ -82,9 +82,11 @@ func Main(remote bool) {
 	// This is how in `tcell/v2` we can bypass scrolling problem
 	if config.ColorSpace == "basic" {
 		os.Setenv("TCELL_TRUECOLOR", "disable")
+	} else if config.ColorSpace == "truecolor" {
+		os.Setenv("COLORTERM", "truecolor")
 	}
 	// setup UI
-	g, err := gocui.NewGui(gocui.Output256, true)
+	g, err := gocui.NewGui(gocui.OutputTrue, true)
 	if err != nil {
 		log.Panicln(err)
 	}
