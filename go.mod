@@ -12,4 +12,4 @@ require (
 	golang.org/x/image v0.0.0-20190802002840-cff245a6509b
 )
 
-replace github.com/awesome-gocui/gocui => github.com/dankox/gocui v0.6.1-0.20201108143544-f84d3fddda5a
+replace github.com/awesome-gocui/gocui => github.com/dankox/gocui v0.6.1-0.20201110211249-ab1c2311e43d
