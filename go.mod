@@ -14,3 +14,4 @@ require (
 )
 
 replace github.com/awesome-gocui/gocui => github.com/dankox/gocui v0.6.1-0.20201110211249-ab1c2311e43d
+// replace github.com/awesome-gocui/gocui => ../gocui

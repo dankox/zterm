@@ -110,6 +110,7 @@ func (w *Widget) Clear() {
 	if w.gview != nil {
 		w.gview.Clear()
 		w.gview.SetOrigin(0, 0)
+		w.body = ""
 	}
 }
 

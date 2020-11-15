@@ -138,6 +138,9 @@ func connectWidgetOuput(w Widgeter, conn *RecvConn) {
 	renderloop:
 		for {
 			select {
+			case <-suspendChan:
+				// wait for resume
+				<-resumeChan
 			case out, ok := <-conn.outchan:
 				output += out + "\n"
 				if !ok {

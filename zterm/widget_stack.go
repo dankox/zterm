@@ -99,7 +99,7 @@ func (ws *WidgetStack) Keybinds(g *gocui.Gui) {
 	// cancel key
 	if err := g.SetKeybinding(ws.name, gocui.KeyCtrlZ, gocui.ModNone, func(g *gocui.Gui, v *gocui.View) error {
 		if v.Name() == ws.name {
-			ws.Disconnect()
+			ws.StopFun()
 		}
 		return nil
 	}); err != nil {
@@ -129,11 +129,13 @@ func (ws *WidgetStack) Print(str string) {
 					if strings.Contains(line, sub) {
 						if hiLine {
 							// highlight full line
+							ws.body += colorText(line, cHighlightStr) + "\n"
 							fmt.Fprintln(ws.gview, colorText(line, cHighlightStr))
 							written = true
 							break
 						}
 						// highlight word only
+						ws.body += strings.ReplaceAll(line, sub, colorText(sub, cHighlightStr)) + "\n"
 						fmt.Fprintln(ws.gview, strings.ReplaceAll(line, sub, colorText(sub, cHighlightStr)))
 						written = true
 						break
@@ -141,11 +143,13 @@ func (ws *WidgetStack) Print(str string) {
 				}
 				// write normal (if not in highlight)
 				if !written {
+					ws.body += line + "\n"
 					fmt.Fprintln(ws.gview, line)
 				}
 			}
 		} else {
 			// write full text if no highlight map
+			ws.body += str
 			fmt.Fprint(ws.gview, str)
 		}
 	}

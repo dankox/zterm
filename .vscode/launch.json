@@ -7,7 +7,7 @@
     "configurations": [
         {
             // for remote run this command in terminal:
-            // dlv debug --headless --listen=:2345 --log --api-version 2
+            // dlv debug --headless --listen=:2345 --api-version 2
             "name": "Connect to server",
             "type": "go",
             "request": "launch",

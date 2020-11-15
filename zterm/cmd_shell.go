@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 
+	"github.com/awesome-gocui/gocui"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -74,15 +75,24 @@ func cmdShell(widget Widgeter, command string) error {
 
 // Execute vim command and use full terminal
 func cmdVim(widget Widgeter, file string) error {
-	// handle bash command execution
-	c := exec.Command("sh", "-c", "vim "+file)
-	c.Stderr = os.Stderr
-	c.Stdin = os.Stdin
-	c.Stdout = os.Stdout
-	if err := c.Run(); err != nil {
-		return err
-	}
+	gui.Update(func(g *gocui.Gui) error {
+		return ErrSuspend
+	})
 
+	go func() {
+		// wait for suspend
+		<-suspendChan
+		defer close(resumeChan)
+
+		// handle bash command execution
+		c := exec.Command("sh", "-c", "vim "+file)
+		c.Stderr = os.Stderr
+		c.Stdin = os.Stdin
+		c.Stdout = os.Stdout
+		if err := c.Run(); err != nil {
+			// return err
+		}
+	}()
 	return nil
 }
 
