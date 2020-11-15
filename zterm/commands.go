@@ -201,6 +201,15 @@ config options:
 			return cmdSSH(wgm, strings.Join(cmdParts[1:], " "))
 		}
 		return errors.New("remote: requires command to run on remote server")
+	case "fancy":
+		if len(cmdParts) > 1 {
+			fpipe := NewWidgetPipe(wgm)
+			if len(cmdParts) > 2 && cmdParts[1] == "remote" {
+				return cmdSSH(fpipe, strings.Join(cmdParts[2:], " "))
+			}
+			return cmdShell(fpipe, strings.Join(cmdParts[1:], " "))
+		}
+		return errors.New("fancy: requires command to run")
 	default:
 		// handle bash command execution
 		return cmdShell(wgm, command)

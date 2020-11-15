@@ -3,6 +3,7 @@ module github.com/dankox/zterm
 go 1.15
 
 require (
+	github.com/alecthomas/chroma v0.8.1
 	github.com/awesome-gocui/gocui v0.6.1-0.20200808231733-d0eae9ef0497
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/muesli/termenv v0.7.4

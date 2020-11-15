@@ -14,7 +14,7 @@ type WidgetStack struct {
 	Widget
 	pos       int
 	stopFun   chan bool
-	Fun       func(Widgeter) error
+	Fun       func() error
 	funStr    string
 	refresh   time.Duration
 	highlight map[string]bool
@@ -157,14 +157,20 @@ func (ws *WidgetStack) SetupFun(cmd string) {
 		return
 	}
 
-	ws.funStr = strings.TrimSpace(cmd)
-	if strings.HasPrefix(ws.funStr, "remote") {
-		ws.Fun = func(w Widgeter) error {
-			return cmdSSH(w, strings.TrimPrefix(ws.funStr, "remote"))
+	var wout Widgeter = ws
+	realcmd := strings.TrimSpace(cmd)
+	if strings.HasPrefix(realcmd, "fancy ") {
+		realcmd = strings.TrimSpace(strings.TrimPrefix(realcmd, "fancy "))
+		wout = NewWidgetPipe(ws)
+	}
+
+	if strings.HasPrefix(realcmd, "remote") {
+		ws.Fun = func() error {
+			return cmdSSH(wout, strings.TrimPrefix(realcmd, "remote"))
 		}
 	} else {
-		ws.Fun = func(w Widgeter) error {
-			return cmdShell(w, ws.funStr)
+		ws.Fun = func() error {
+			return cmdShell(wout, realcmd)
 		}
 	}
 	ws.StartFun()
@@ -187,7 +193,7 @@ func (ws *WidgetStack) StartFun() {
 	go func() {
 		// setup action function
 		action := func() error {
-			if err := ws.Fun(ws); err != nil {
+			if err := ws.Fun(); err != nil {
 				appendErrorMsgToView(ws, err)
 				return err
 			}
