@@ -1,20 +1,15 @@
 package zterm
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
-	"net"
 	"os"
-	"os/user"
 	"sort"
-	"time"
 
 	"github.com/awesome-gocui/gocui"
+	"github.com/melbahja/goph"
 	"github.com/spf13/viper"
-	"golang.org/x/crypto/ssh"
 )
 
 // Server configuration
@@ -55,7 +50,7 @@ var (
 	gui          *gocui.Gui
 
 	// ssh connection
-	sshConn *ssh.Client
+	sshConn *goph.Client
 
 	// ErrSuspend error cause gocui environment to suspend
 	ErrSuspend = errors.New("suspend")
@@ -74,6 +69,8 @@ var (
 //
 // - run GUI.MainLoop
 func Main(remote bool) {
+	var err error
+
 	// load config file (or arguments)
 	viper.Unmarshal(&config)
 
@@ -82,7 +79,7 @@ func Main(remote bool) {
 
 	if remote {
 		// setup ssh configuration
-		sshConn = initSSHConnection()
+		sshConn, err = sshNewConnect(config.Server.Host, 22, config.Server.User)
 	}
 
 	// For Windows 7 or other non-compatible stuff
@@ -285,60 +282,4 @@ func getSortedWidgetStack() (wlist []*WidgetStack) {
 		return wlist[i].pos < wlist[j].pos
 	})
 	return
-}
-
-// initSSHConnection loads a public key and setup ssh config for connection
-func initSSHConnection() *ssh.Client {
-	usr, err := user.Current()
-	if err != nil {
-		return nil
-	}
-	keyfile := usr.HomeDir + "/.ssh/id_rsa"
-
-	var signer ssh.Signer
-	key, err := ioutil.ReadFile(keyfile)
-	if err == nil {
-		signer, err = ssh.ParsePrivateKey(key)
-	}
-
-	tries := 2
-	for {
-		conn, err := sshConnect(signer)
-		if err == nil {
-			return conn
-		} else if signer != nil || tries < 1 {
-			fmt.Println(err)
-			return nil
-		}
-		if _, ok := err.(*net.OpError); ok {
-			fmt.Println("cannot connect to remote server")
-			return nil
-		}
-		fmt.Println(err)
-		tries--
-	}
-}
-
-// sshConnect tries to connect to ssh server with provided authkey/signer,
-// or request password if signer is nil.
-func sshConnect(signer ssh.Signer) (*ssh.Client, error) {
-	auth := []ssh.AuthMethod{}
-	if signer == nil {
-		reader := bufio.NewReader(os.Stdin)
-		fmt.Print("Password: ")
-		pass, _, _ := reader.ReadLine()
-		auth = []ssh.AuthMethod{ssh.Password(string(pass))}
-	} else {
-		auth = []ssh.AuthMethod{ssh.PublicKeys(signer)}
-	}
-	sshConfig := &ssh.ClientConfig{
-		User:            config.Server.User,
-		Auth:            auth,
-		Timeout:         5 * time.Second,
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-	}
-
-	hostport := fmt.Sprintf("%s:%d", config.Server.Host, 22)
-	conn, err := ssh.Dial("tcp", hostport, sshConfig)
-	return conn, err
 }

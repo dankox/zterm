@@ -8,6 +8,8 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"os/user"
+	"path/filepath"
 
 	"github.com/awesome-gocui/gocui"
 	"golang.org/x/crypto/ssh"
@@ -92,6 +94,57 @@ func cmdVim(widget Widgeter, file string) error {
 		if err := c.Run(); err != nil {
 			// return err
 		}
+	}()
+	return nil
+}
+
+// Execute vim command and use full terminal
+func cmdRVim(widget Widgeter, file string) error {
+	// first download file
+	usr, _ := user.Current()
+	tmpdir := usr.HomeDir + "/.zterm/tmp/"
+	if err := os.MkdirAll(tmpdir, os.ModePerm); err != nil {
+		return err
+	}
+	tmpfile := usr.HomeDir + "/.zterm/tmp/" + filepath.Base(file)
+	f, err := os.Create(tmpfile)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	if err := sshCopyFrom(f, file); err != nil {
+		return err
+	}
+
+	// request suspend
+	gui.Update(func(g *gocui.Gui) error {
+		return ErrSuspend
+	})
+
+	go func() {
+		// wait for suspend
+		<-suspendChan
+		defer close(resumeChan)
+
+		// handle bash command execution
+		// c := exec.Command("sh", "-c", "code --wait "+tmpfile)
+		c := exec.Command("sh", "-c", "vim "+tmpfile)
+		c.Stderr = os.Stderr
+		c.Stdin = os.Stdin
+		c.Stdout = os.Stdout
+		if err := c.Run(); err != nil {
+			// return err
+		}
+		go func() {
+			f, err := os.Open(tmpfile)
+			if err != nil {
+				return
+			}
+			defer f.Close()
+			sshCopyTo(f, file)
+		}()
+
 	}()
 	return nil
 }

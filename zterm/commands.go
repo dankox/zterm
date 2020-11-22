@@ -196,6 +196,12 @@ config options:
 			return cmdVim(wgm, strings.Join(cmdParts[1:], " "))
 		}
 		return cmdShell(wgm, "vim --help")
+	case "rvim":
+		// handle vim command execution
+		if len(cmdParts) > 1 {
+			return cmdRVim(wgm, strings.Join(cmdParts[1:], " "))
+		}
+		return cmdShell(wgm, "vim --help")
 	case "remote":
 		if len(cmdParts) > 1 {
 			return cmdSSH(wgm, strings.Join(cmdParts[1:], " "))
