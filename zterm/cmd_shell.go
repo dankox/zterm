@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
-	"path/filepath"
 
 	"github.com/awesome-gocui/gocui"
 	"golang.org/x/crypto/ssh"
@@ -106,7 +105,7 @@ func cmdRVim(widget Widgeter, file string) error {
 	if err := os.MkdirAll(tmpdir, os.ModePerm); err != nil {
 		return err
 	}
-	tmpfile := usr.HomeDir + "/.zterm/tmp/" + filepath.Base(file)
+	tmpfile := usr.HomeDir + "/.zterm/tmp/" + dsnPathBase(file)
 	f, err := os.Create(tmpfile)
 	if err != nil {
 		return err
@@ -114,6 +113,7 @@ func cmdRVim(widget Widgeter, file string) error {
 	defer f.Close()
 
 	if err := sshCopyFrom(f, file); err != nil {
+		// TODO: when dataset or member doesn't exist, we could skip this...
 		return err
 	}
 

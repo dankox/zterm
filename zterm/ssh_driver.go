@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/user"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/melbahja/goph"
@@ -147,14 +148,14 @@ func askPass(msg string) string {
 func askIsHostTrusted(host string, key ssh.PublicKey) bool {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Printf("Unknown Host: %s \nFingerprint: %s \n", host, ssh.FingerprintSHA256(key))
-	fmt.Print("Would you like to add it? type yes or no: ")
+	fmt.Print("Do you want to add it? [y/n]: ")
 
 	a, err := reader.ReadString('\n')
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	return strings.ToLower(strings.TrimSpace(a)) == "yes"
+	return strings.ToLower(strings.TrimSpace(a)) == "yes" || strings.ToLower(strings.TrimSpace(a)) == "y"
 }
 
 func sshCopy(r io.Reader, remotePath string, permissions string, size int64) error {
@@ -177,6 +178,9 @@ func sshCopy(r io.Reader, remotePath string, permissions string, size int64) err
 	return session.Run("/usr/bin/scp -t " + directory)
 }
 
+// sshCopyTo copies local file to remote path
+//
+// remote path can be absolute or relative path, or dataset name (starting with //)
 func sshCopyTo(r io.Reader, remotePath string) error {
 	session, err := sshConn.NewSession()
 	if err != nil {
@@ -189,9 +193,23 @@ func sshCopyTo(r io.Reader, remotePath string) error {
 		io.Copy(w, r)
 	}()
 
-	return session.Run("dd of=" + remotePath)
+	// if dataset pattern
+	if isDsn(remotePath) {
+		err = session.Run("cat > ~/.zterm/" + dsnNormalize(remotePath) + " && cp ~/.zterm/" + dsnNormalize(remotePath) + " " + dsnNormalize(remotePath))
+		if err != nil {
+			// return err
+			return fmt.Errorf("dd/cp: %v", err)
+		}
+		return nil
+	}
+
+	// for regular files
+	return session.Run("cat > " + remotePath)
 }
 
+// sshCopyFrom copies remote path to local file
+//
+// remote path can be absolute or relative path, or dataset name (starting with //)
 func sshCopyFrom(w io.WriteCloser, remotePath string) error {
 	session, err := sshConn.NewSession()
 	if err != nil {
@@ -204,101 +222,55 @@ func sshCopyFrom(w io.WriteCloser, remotePath string) error {
 		io.Copy(w, r)
 	}()
 
-	return session.Run("dd if=" + remotePath)
+	// if dataset pattern
+	if isDsn(remotePath) {
+		err = session.Run("cp " + dsnNormalize(remotePath) + " ~/.zterm/" + dsnPathBase(remotePath) + " && cat ~/.zterm/" + dsnPathBase(remotePath))
+		if err != nil {
+			// return err
+			return fmt.Errorf("cp/dd: '%v' -> %v", "cp "+dsnNormalize(remotePath)+" ~/.zterm/"+dsnPathBase(remotePath)+" && cat ~/.zterm/"+dsnPathBase(remotePath), err)
+		}
+		return nil
+	}
+
+	// for regular files
+	return session.Run("cat " + remotePath)
 }
 
-// func getSftp(client *goph.Client) *sftp.Client {
-// 	sftpc, err := client.NewSftp()
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	return sftpc
-// }
+// isDsn check if string is valid dataset name or not.
+// Valid name starts with // and can be included in double quotes, like: "//dsn.name", //dsn.name or //'dsn.name'
+func isDsn(str string) bool {
+	str = strings.Trim(str, "\"")
+	if strings.HasPrefix(str, "//") {
+		return true
+	}
+	return false
+}
 
-// func playWithSSHJustForTestingThisProgram(client *goph.Client) {
+// dsnNormalize normalize dataset name to uss version - "//'dsn.name'"
+//
+// Dataset names are converted to the uss version. If the name is like dsn.name or //'dsn.name' or even full uss version.
+func dsnNormalize(dsn string) string {
+	dsn = strings.Trim(dsn, "\"")
+	if strings.HasPrefix(dsn, "//") {
+		return "\"" + dsn + "\""
+	}
+	return "\"//'" + dsn + "'\""
+}
 
-// 	fmt.Println("Welcome To Goph :D")
-// 	fmt.Printf("Connected to %s\n", client.Config.Addr)
-// 	fmt.Println("Type your shell command and enter.")
-// 	fmt.Println("To download file from remote type: download remote/path local/path")
-// 	fmt.Println("To upload file to remote type: upload local/path remote/path")
-// 	fmt.Println("To create a remote dir type: mkdirall /path/to/remote/newdir")
-// 	fmt.Println("To exit type: exit")
-
-// 	scanner := bufio.NewScanner(os.Stdin)
-
-// 	fmt.Print("> ")
-
-// 	var (
-// 		out   []byte
-// 		err   error
-// 		cmd   string
-// 		parts []string
-// 	)
-
-// loop:
-// 	for scanner.Scan() {
-
-// 		err = nil
-// 		cmd = scanner.Text()
-// 		parts = strings.Split(cmd, " ")
-
-// 		if len(parts) < 1 {
-// 			continue
-// 		}
-
-// 		switch parts[0] {
-
-// 		case "exit":
-// 			fmt.Println("goph bye!")
-// 			break loop
-
-// 		case "download":
-
-// 			if len(parts) != 3 {
-// 				fmt.Println("please type valid download command!")
-// 				continue loop
-// 			}
-
-// 			err = client.Download(parts[1], parts[2])
-
-// 			fmt.Println("download err: ", err)
-// 			break
-
-// 		case "upload":
-
-// 			if len(parts) != 3 {
-// 				fmt.Println("please type valid upload command!")
-// 				continue loop
-// 			}
-
-// 			err = client.Upload(parts[1], parts[2])
-
-// 			fmt.Println("upload err: ", err)
-// 			break
-
-// 		case "mkdirall":
-
-// 			if len(parts) != 2 {
-// 				fmt.Println("please type valid mkdirall command!")
-// 				continue loop
-// 			}
-
-// 			ftp := getSftp(client)
-
-// 			err = ftp.MkdirAll(parts[1])
-// 			fmt.Printf("mkdirall err(%v) you can check via: stat %s\n", err, parts[1])
-
-// 		default:
-
-// 			command, err := client.Command(parts[0], parts[1:]...)
-// 			if err != nil {
-// 				panic(err)
-// 			}
-// 			out, err = command.CombinedOutput()
-// 			fmt.Println(string(out), err)
-// 		}
-
-// 		fmt.Print("> ")
-// 	}
-// }
+// dsnPathBase returns base name of dataset or path.
+//
+// - dataset name, it is simplified to last qualifier or member name
+//
+// - path (not dataset name), base name is returned from the path
+func dsnPathBase(dsn string) string {
+	if !isDsn(dsn) {
+		return filepath.Base(dsn)
+	}
+	dsn = strings.Trim(strings.TrimLeft(strings.Trim(dsn, "\""), "//"), "'")
+	dsnParts := strings.Split(dsn, ".")
+	lastPart := strings.Split(dsnParts[len(dsnParts)-1], "(")
+	if len(lastPart) > 1 {
+		return strings.TrimRight(lastPart[1], ")")
+	}
+	return lastPart[0]
+}
