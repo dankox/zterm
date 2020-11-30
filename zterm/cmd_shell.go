@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"path/filepath"
 
 	"github.com/awesome-gocui/gocui"
 	"golang.org/x/crypto/ssh"
@@ -101,11 +102,11 @@ func cmdVim(widget Widgeter, file string) error {
 func cmdRVim(widget Widgeter, file string) error {
 	// first download file
 	usr, _ := user.Current()
-	tmpdir := usr.HomeDir + "/.zterm/tmp/"
+	tmpdir := filepath.Join(usr.HomeDir, ".zterm", "tmp")
 	if err := os.MkdirAll(tmpdir, os.ModePerm); err != nil {
 		return err
 	}
-	tmpfile := usr.HomeDir + "/.zterm/tmp/" + dsnPathBase(file)
+	tmpfile := filepath.Join(tmpdir, dsnPathBase(file))
 	f, err := os.Create(tmpfile)
 	if err != nil {
 		return err
@@ -129,7 +130,7 @@ func cmdRVim(widget Widgeter, file string) error {
 
 		// handle bash command execution
 		// c := exec.Command("sh", "-c", "code --wait "+tmpfile)
-		c := exec.Command("sh", "-c", "vim "+tmpfile)
+		c := exec.Command("sh", "-c", "vim "+filepath.ToSlash(tmpfile))
 		c.Stderr = os.Stderr
 		c.Stdin = os.Stdin
 		c.Stdout = os.Stdout
