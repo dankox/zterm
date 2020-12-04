@@ -166,6 +166,7 @@ func sshCopy(r io.Reader, remotePath string, permissions string, size int64) err
 	if err != nil {
 		return fmt.Errorf("cannot open new session: %v", err)
 	}
+	defer session.Close()
 
 	go func() {
 		w, _ := session.StdinPipe()
@@ -186,6 +187,7 @@ func sshCopyTo(r io.Reader, remotePath string) error {
 	if err != nil {
 		return fmt.Errorf("cannot open new session: %v", err)
 	}
+	defer session.Close()
 
 	go func() {
 		w, _ := session.StdinPipe()
@@ -215,6 +217,7 @@ func sshCopyFrom(w io.WriteCloser, remotePath string) error {
 	if err != nil {
 		return fmt.Errorf("cannot open new session: %v", err)
 	}
+	defer session.Close()
 
 	go func() {
 		r, _ := session.StdoutPipe()
