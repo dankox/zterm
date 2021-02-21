@@ -1,6 +1,7 @@
 package zterm
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/awesome-gocui/gocui"
@@ -53,7 +54,7 @@ func (w *Widget) Layout(g *gocui.Gui) error {
 	// set view position and dimension
 	v, err := g.SetView(w.name, w.x0, w.y0, w.x1, w.y1, 0)
 	if err != nil {
-		if !gocui.IsUnknownView(err) {
+		if !errors.Is(err, gocui.ErrUnknownView) {
 			return fmt.Errorf("view %v: %v", w.name, err)
 		}
 		fmt.Fprint(v, w.body)
