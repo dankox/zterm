@@ -1,6 +1,7 @@
 package zterm
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -66,7 +67,7 @@ func (ws *WidgetStack) Layout(g *gocui.Gui) error {
 	// set view position and dimension
 	v, err := g.SetView(ws.name, 0, yPos, maxX-1, yPos+yHeight, overlap)
 	if err != nil {
-		if !gocui.IsUnknownView(err) {
+		if !errors.Is(err, gocui.ErrUnknownView) {
 			return fmt.Errorf("view %v: %v", ws.name, err)
 		}
 		fmt.Fprint(v, ws.body)

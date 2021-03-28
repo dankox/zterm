@@ -78,7 +78,7 @@ func (wf *WidgetFloaty) Layout(g *gocui.Gui) error {
 
 	v, err := g.SetView(wf.name, xPos, yPos, xPos+width, yPos+wf.height, 0)
 	if err != nil {
-		if !gocui.IsUnknownView(err) {
+		if !errors.Is(err, gocui.ErrUnknownView) {
 			return fmt.Errorf("view %v: %v", wf.name, err)
 		}
 		fmt.Fprint(v, wf.body)

@@ -154,7 +154,7 @@ func Main(remote bool) {
 			}
 			keybindsGlobal(g)
 
-		} else if gocui.IsQuit(err) {
+		} else if errors.Is(err, gocui.ErrQuit) {
 			// quit request
 			g.Cursor = true
 			break

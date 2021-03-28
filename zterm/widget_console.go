@@ -2,6 +2,7 @@ package zterm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -70,7 +71,7 @@ func (wc *WidgetConsole) Layout(g *gocui.Gui) error {
 	// set console "outer" window
 	v, err := g.SetView(cmdView, 0, yPos, width, yPos+maxHeight, 0)
 	if err != nil {
-		if !gocui.IsUnknownView(err) {
+		if !errors.Is(err, gocui.ErrUnknownView) {
 			return fmt.Errorf("view %v: %v", cmdView, err)
 		}
 		// wc.gview = v // set pointer to GUI View for wc.Clear() command
@@ -90,7 +91,7 @@ func (wc *WidgetConsole) Layout(g *gocui.Gui) error {
 	// set consol prompt PS1
 	v, err = g.SetView(cmdPromptPS1, 0, yPos+maxHeight-2, 4, yPos+maxHeight, 0)
 	if err != nil {
-		if !gocui.IsUnknownView(err) {
+		if !errors.Is(err, gocui.ErrUnknownView) {
 			return fmt.Errorf("view %v: %v", cmdView, err)
 		}
 		fmt.Fprint(v, promptPS1)
@@ -101,7 +102,7 @@ func (wc *WidgetConsole) Layout(g *gocui.Gui) error {
 	// set console "input" line
 	v, err = g.SetView(cmdPrompt, 3, yPos+maxHeight-2, width, yPos+maxHeight, 0)
 	if err != nil {
-		if !gocui.IsUnknownView(err) {
+		if !errors.Is(err, gocui.ErrUnknownView) {
 			return fmt.Errorf("view %v: %v", cmdView, err)
 		}
 	}
@@ -267,11 +268,11 @@ func consoleEditor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 		}
 	case key == gocui.KeyHome:
 		x, _ := v.Cursor()
-		v.MoveCursor(-x, 1, false)
+		v.MoveCursor(-x, 1)
 	case key == gocui.KeyEnd:
 		x, y := v.Cursor()
 		if line, err := v.Line(y); err == nil {
-			v.MoveCursor(len(line)-x, 0, false)
+			v.MoveCursor(len(line)-x, 0)
 		}
 	case key == gocui.KeyArrowDown:
 		// command history
@@ -290,9 +291,9 @@ func consoleEditor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 			v.SetCursor(len(newcmd), 0)
 		}
 	case key == gocui.KeyArrowLeft:
-		v.MoveCursor(-1, 0, false)
+		v.MoveCursor(-1, 0)
 	case key == gocui.KeyArrowRight:
-		v.MoveCursor(1, 0, false)
+		v.MoveCursor(1, 0)
 	// from awesome-gocui (new addition?)
 	case key == gocui.KeyCtrlU:
 		v.EditDeleteToStartOfLine()
