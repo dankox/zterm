@@ -119,49 +119,12 @@ func Main(remote bool) {
 		PopupHelpWidget()
 	}
 
-	// prepare suspend channel
-	suspendChan = make(chan struct{})
-
 	// main loop running
-	for {
-		err = g.MainLoop()
-		// check what type of exit we've got from mainloop
-		if err != nil && err.Error() == ErrSuspend.Error() {
-			// suspend request
-			g.Cursor = true
-			g.Close()
-
-			// prepare resume channel
-			resumeChan = make(chan struct{})
-			close(suspendChan)
-
-			// wait for resume
-			<-resumeChan
-			suspendChan = make(chan struct{}) // recreate suspend channel
-			// recreate gocui
-			g, err = gocui.NewGui(gocui.OutputTrue, true)
-			if err != nil {
-				log.Panicln(err)
-			}
-			gui = g
-			g.SetManagerFunc(handleLayouts)
-			// set keybinds (after layout manager)
-			for _, w := range widgets {
-				w.Keybinds(g)
-				if w.GetName() != cmdView {
-					hasWidgets = true
-				}
-			}
-			keybindsGlobal(g)
-
-		} else if errors.Is(err, gocui.ErrQuit) {
-			// quit request
-			g.Cursor = true
-			break
-		} else if err != nil {
-			log.Panicln(err)
-		}
+	if err := g.MainLoop(); err != nil && !errors.Is(err, gocui.ErrQuit) {
+		g.Cursor = true
+		log.Panicln(err)
 	}
+	g.Cursor = true
 }
 
 // setupManagers prepare list of widgets where each of them manage its own layout and data

@@ -77,24 +77,18 @@ func cmdShell(widget Widgeter, command string) error {
 
 // Execute vim command and use full terminal
 func cmdVim(widget Widgeter, file string) error {
-	gui.Update(func(g *gocui.Gui) error {
-		return ErrSuspend
-	})
+	gocui.Suspend()
+	defer gocui.Resume()
 
-	go func() {
-		// wait for suspend
-		<-suspendChan
-		defer close(resumeChan)
+	// handle bash command execution
+	c := exec.Command("sh", "-c", "vim "+file)
+	c.Stderr = os.Stderr
+	c.Stdin = os.Stdin
+	c.Stdout = os.Stdout
+	if err := c.Run(); err != nil {
+		return err
+	}
 
-		// handle bash command execution
-		c := exec.Command("sh", "-c", "vim "+file)
-		c.Stderr = os.Stderr
-		c.Stdin = os.Stdin
-		c.Stdout = os.Stdout
-		if err := c.Run(); err != nil {
-			// return err
-		}
-	}()
 	return nil
 }
 
@@ -118,35 +112,28 @@ func cmdRVim(widget Widgeter, file string) error {
 		return err
 	}
 
-	// request suspend
-	gui.Update(func(g *gocui.Gui) error {
-		return ErrSuspend
-	})
+	// suspend gocui (for vim)
+	gocui.Suspend()
+	defer gocui.Resume()
 
+	// handle bash command execution
+	// c := exec.Command("sh", "-c", "code --wait "+tmpfile)
+	c := exec.Command("sh", "-c", "vim "+filepath.ToSlash(tmpfile))
+	c.Stderr = os.Stderr
+	c.Stdin = os.Stdin
+	c.Stdout = os.Stdout
+	if err := c.Run(); err != nil {
+		return err
+	}
 	go func() {
-		// wait for suspend
-		<-suspendChan
-		defer close(resumeChan)
-
-		// handle bash command execution
-		// c := exec.Command("sh", "-c", "code --wait "+tmpfile)
-		c := exec.Command("sh", "-c", "vim "+filepath.ToSlash(tmpfile))
-		c.Stderr = os.Stderr
-		c.Stdin = os.Stdin
-		c.Stdout = os.Stdout
-		if err := c.Run(); err != nil {
-			// return err
+		f, err := os.Open(tmpfile)
+		if err != nil {
+			return
 		}
-		go func() {
-			f, err := os.Open(tmpfile)
-			if err != nil {
-				return
-			}
-			defer f.Close()
-			sshCopyTo(f, file)
-		}()
-
+		defer f.Close()
+		sshCopyTo(f, file)
 	}()
+
 	return nil
 }
 
